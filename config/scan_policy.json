@@ -1,0 +1,10 @@
+{
+  "max_requests_per_workflow": 1,
+  "default_scan_level": "low-risk",
+  "allow_fuzzing": false,
+  "allow_bruteforce": false,
+  "allow_exploitation": false,
+  "allow_crawling": false,
+  "save_sensitive_data": false,
+  "require_scope_check": true
+}

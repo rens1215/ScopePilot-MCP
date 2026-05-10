@@ -1,0 +1,29 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VS Code
+.vscode/
+
+# Runtime data
+data/*.log
+data/findings.jsonl
+
+# Secrets / env
+.env
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# MCP / local temp
+*.tmp
+*.bak

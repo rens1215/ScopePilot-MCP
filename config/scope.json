@@ -1,0 +1,16 @@
+{
+  "program": "demo-bug-bounty-program",
+  "allowed_domains": [
+    "example.com",
+    "*.example.com"
+  ],
+  "blocked_domains": [
+    "thirdparty.example.com"
+  ],
+  "max_rps": 1,
+  "allowed_scan_level": "passive_or_light",
+  "notes": [
+    "Only test assets explicitly listed in the bug bounty policy.",
+    "Do not perform destructive, high-volume, brute-force, or data-exfiltration actions."
+  ]
+}
