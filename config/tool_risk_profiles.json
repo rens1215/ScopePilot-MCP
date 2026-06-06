@@ -83,6 +83,18 @@
       "lab"
     ]
   },
+  "tool_safe_sitemap_parser_workflow": {
+    "risk_level": "low",
+    "external_requests": true,
+    "default_requires_approval": true,
+    "max_requests": 1,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  },
   "tool_summarize_findings": {
     "risk_level": "safe",
     "external_requests": false,
