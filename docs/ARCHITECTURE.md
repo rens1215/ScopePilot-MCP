@@ -14,17 +14,19 @@ The system is designed to help an AI agent perform scoped reconnaissance, contro
 
 The system must operate only on explicitly authorized in-scope targets.
 
+This project is not an unrestricted attack automation tool. Every external action must pass scope validation, risk policy, workflow safety rules, and approval rules where required.
+
 ---
 
-## Current Status
+## Current Stable Version
 
 Current stable version:
 
 ```text
-v0.1-safe-passive-recon
+v0.2-risk-gate-and-execution-policy
 ```
 
-Implemented:
+v0.2 completed:
 
 * MCP server integration
 * Scope guard
@@ -37,24 +39,29 @@ Implemented:
 * CORS validator
 * Priority scorer
 * Finding summarizer
+* Policy loader
+* Tool risk profiles
+* Risk gate
+* Approval controller
+* Risk evaluation MCP tool
+* Tool risk model documentation
 * Runtime skill folder structure
-* Basic Git version control
+* Git version control
 * Logging
 * Simplified LM Studio toolbox
 
-Not implemented yet:
+v0.2 exposed MCP tools:
 
-* Agent planner
-* Risk gate
-* Approval controller
-* Execution state
-* Task router
-* Evidence store
-* Tool risk profiles
-* Runtime skill loader
-* JS endpoint extraction workflow
-* Robots/security.txt/sitemap workflow
-* Controlled validation workflows
+```text
+tool_check_scope
+tool_evaluate_action_risk
+tool_safe_http_probe_workflow
+tool_safe_security_headers_workflow
+tool_safe_cors_observation_workflow
+tool_safe_passive_recon_workflow
+tool_summarize_findings
+tool_write_report_draft
+```
 
 ---
 
@@ -63,41 +70,86 @@ Not implemented yet:
 Next milestone:
 
 ```text
-v0.2-risk-gate-and-execution-policy
+v0.3-runtime-skills-and-skill-loader
 ```
 
-The next target is to implement the risk control layer.
+The next target is to implement the runtime skill knowledge layer.
 
-Required files:
+v0.3 does not add new vulnerability workflows.
+v0.3 does not add exploit logic.
+v0.3 does not change existing workflow behavior.
+
+The purpose of v0.3 is to let the future runtime AI agent load structured skill knowledge from local Markdown files.
+
+---
+
+## v0.3 Required Files
+
+Required implementation files:
 
 ```text
-agent/__init__.py
-agent/risk_gate.py
-agent/approval_controller.py
-tools/policy_loader.py
-config/tool_risk_profiles.json
-tests/test_risk_gate.py
-docs/TOOL_RISK_MODEL.md
+tools/skill_loader.py
+tests/test_skill_loader.py
+docs/RUNTIME_SKILLS.md
 ```
 
-Optional after tests pass:
+Required runtime skill files:
 
 ```text
-server.py wrapper: tool_evaluate_action_risk
+skills/agent_runtime/passive_recon/SKILL.md
+skills/agent_runtime/security_headers/SKILL.md
+skills/agent_runtime/cors/SKILL.md
+skills/agent_runtime/reporting/SKILL.md
+skills/agent_runtime/risk_gate/SKILL.md
 ```
 
-Do not add new vulnerability workflows before the risk gate is complete.
+Optional future runtime skill files, not required for v0.3:
+
+```text
+skills/agent_runtime/auth_access_control/SKILL.md
+skills/agent_runtime/idor/SKILL.md
+skills/agent_runtime/open_redirect/SKILL.md
+skills/agent_runtime/exposed_files/SKILL.md
+skills/agent_runtime/graphql/SKILL.md
+```
+
+---
+
+## v0.3 Non-Goals
+
+Do not implement these in v0.3:
+
+```text
+safe_js_endpoint_extraction_workflow
+safe_robots_securitytxt_workflow
+safe_sitemap_parser_workflow
+endpoint_inventory_builder
+open_redirect workflow
+IDOR workflow
+auth/access-control workflow
+GraphQL workflow
+exposed file workflow
+exploit automation
+fuzzing
+bruteforce
+credential testing
+state-changing validation
+```
+
+These belong to later versions.
 
 ---
 
 ## High-Level Execution Flow
 
-The intended long-term execution flow is:
+Long-term intended flow:
 
 ```text
 User Request
     ↓
 Agent Planner
+    ↓
+Runtime Skill Loader
     ↓
 Risk Gate
     ↓
@@ -118,12 +170,14 @@ Finding Summarizer
 Report Writer
 ```
 
-Current v0.1 flow is simpler:
+Current v0.2 flow:
 
 ```text
 User Request
     ↓
 MCP Tool Wrapper
+    ↓
+Risk Gate / Approval Controller
     ↓
 Safe Workflow
     ↓
@@ -138,12 +192,12 @@ Storage
 Summary / Report
 ```
 
-v0.2 adds:
+v0.3 adds:
 
 ```text
-Risk Gate
-Approval Controller
-Tool Risk Profiles
+Runtime Skill Loader
+Runtime SKILL.md knowledge files
+Runtime skill documentation
 ```
 
 ---
@@ -155,11 +209,11 @@ MCP Layer
     server.py
 
 Agent Layer
-    planner
     risk_gate
     approval_controller
-    execution_state
-    task_router
+    future planner
+    future execution_state
+    future task_router
 
 Workflow Layer
     safe_http_probe_workflow
@@ -177,6 +231,7 @@ Tool Layer
     storage
     logger
     policy_loader
+    skill_loader
 
 Validator Layer
     header_validator
@@ -203,24 +258,22 @@ Data Layer
 
 Report Layer
     report writer
-    report templates
+    future report templates
 ```
 
 ---
 
-## Directory Structure
-
-Recommended structure:
+## Recommended Directory Structure
 
 ```text
 MCP_SERVER_FOR_LLM_HACKER/
 ├── agent/
 │   ├── __init__.py
-│   ├── planner.py
 │   ├── risk_gate.py
 │   ├── approval_controller.py
-│   ├── execution_state.py
-│   └── task_router.py
+│   ├── planner.py                  # future
+│   ├── execution_state.py          # future
+│   └── task_router.py              # future
 │
 ├── config/
 │   ├── scope.json
@@ -236,10 +289,12 @@ MCP_SERVER_FOR_LLM_HACKER/
 │
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── CURRENT_STATE.md
 │   ├── FINDING_SCHEMA.md
 │   ├── ROADMAP.md
 │   ├── TEST_PLAN.md
-│   └── TOOL_RISK_MODEL.md
+│   ├── TOOL_RISK_MODEL.md
+│   └── RUNTIME_SKILLS.md
 │
 ├── skills/
 │   ├── agent_runtime/
@@ -251,7 +306,15 @@ MCP_SERVER_FOR_LLM_HACKER/
 │   │   │   └── SKILL.md
 │   │   ├── reporting/
 │   │   │   └── SKILL.md
-│   │   └── risk_gate/
+│   │   ├── risk_gate/
+│   │   │   └── SKILL.md
+│   │   ├── auth_access_control/     # future
+│   │   │   └── SKILL.md
+│   │   ├── idor/                    # future
+│   │   │   └── SKILL.md
+│   │   ├── open_redirect/           # future
+│   │   │   └── SKILL.md
+│   │   └── exposed_files/           # future
 │   │       └── SKILL.md
 │   │
 │   └── codex_dev/
@@ -272,15 +335,16 @@ MCP_SERVER_FOR_LLM_HACKER/
 │   ├── finding_summarizer.py
 │   ├── storage.py
 │   ├── logger.py
-│   └── policy_loader.py
+│   ├── policy_loader.py
+│   └── skill_loader.py
 │
 ├── validators/
 │   ├── __init__.py
 │   ├── header_validator.py
 │   ├── cors_validator.py
-│   ├── exposed_file_validator.py
-│   ├── open_redirect_validator.py
-│   └── authz_validator.py
+│   ├── exposed_file_validator.py    # future
+│   ├── open_redirect_validator.py   # future
+│   └── authz_validator.py           # future
 │
 ├── workflows/
 │   ├── __init__.py
@@ -288,14 +352,15 @@ MCP_SERVER_FOR_LLM_HACKER/
 │   ├── safe_security_headers_workflow.py
 │   ├── safe_cors_observation_workflow.py
 │   ├── safe_passive_recon_workflow.py
-│   ├── safe_robots_securitytxt_workflow.py
-│   └── safe_js_endpoint_extraction_workflow.py
+│   ├── safe_robots_securitytxt_workflow.py      # future
+│   └── safe_js_endpoint_extraction_workflow.py  # future
 │
 ├── tests/
-│   ├── test_scope_guard.py
-│   ├── test_workflows.py
 │   ├── test_risk_gate.py
-│   └── test_finding_summarizer.py
+│   ├── test_skill_loader.py
+│   ├── test_scope_guard.py             # future
+│   ├── test_workflows.py               # future
+│   └── test_finding_summarizer.py      # future
 │
 ├── server.py
 ├── requirements.txt
@@ -328,13 +393,19 @@ Rules:
 * `server.py` should not send raw HTTP requests.
 * `server.py` should not make validator decisions.
 * New MCP tools should be added only when necessary.
+* Low-level tools should generally remain hidden from LM Studio.
 
-Example wrapper style:
+Current exposed MCP tools:
 
-```python
-@mcp.tool()
-def tool_safe_passive_recon_workflow(target: str) -> dict:
-    return safe_passive_recon_workflow(target)
+```text
+tool_check_scope
+tool_evaluate_action_risk
+tool_safe_http_probe_workflow
+tool_safe_security_headers_workflow
+tool_safe_cors_observation_workflow
+tool_safe_passive_recon_workflow
+tool_summarize_findings
+tool_write_report_draft
 ```
 
 ---
@@ -351,81 +422,267 @@ Purpose:
 
 The Agent Layer controls whether and how an action should be executed.
 
-Planned modules:
+Current modules:
+
+```text
+risk_gate.py
+approval_controller.py
+```
+
+Future modules:
 
 ```text
 planner.py
-risk_gate.py
-approval_controller.py
 execution_state.py
 task_router.py
 ```
 
-### `planner.py`
+### `risk_gate.py`
+
+Current responsibility:
+
+* Evaluate tool risk.
+* Check if a tool is allowed in the current execution mode.
+* Require approval for low, medium, and high risk actions.
+* Deny unknown or blocked tools by default.
+* Fail closed when tool risk profile is missing or malformed.
+
+Rules:
+
+* Must not execute tools.
+* Must not call workflows.
+* Must not send HTTP requests.
+* Must not modify target state.
+* Must not bypass scope guard.
+
+### `approval_controller.py`
+
+Current responsibility:
+
+* Build approval request objects.
+* Explain estimated requests, risk level, state-change risk, credential usage, and allowed modes.
+* Prepare data that the UI or LLM can show before execution.
+
+Rules:
+
+* Must not execute tools.
+* Must not call workflows.
+* Must not send HTTP requests.
+* Must not decide new policy.
+* Allow/deny decision must come from `risk_gate.py`.
+
+### Future `planner.py`
 
 Future responsibility:
 
 * Convert user intent into an execution plan.
 * Select appropriate workflows.
+* Load runtime skills when needed.
 * Avoid directly executing tools.
 * Produce structured plans.
 
-Example future plan:
+Planner must not bypass:
+
+```text
+scope_guard
+risk_gate
+approval_controller
+tool_risk_profiles
+```
+
+---
+
+## Runtime Skill Layer
+
+Location:
+
+```text
+skills/agent_runtime/
+```
+
+Purpose:
+
+Runtime skills are local Markdown knowledge files for the future autonomous security testing AI agent.
+
+They define:
+
+* When to use a skill
+* Preconditions
+* Allowed actions
+* Disallowed actions
+* Evidence requirements
+* Validation rules
+* False-positive rules
+* Escalation rules
+* Output schemas
+
+Runtime skills are not executable code.
+
+Runtime skills must not contain:
+
+```text
+unrestricted payload lists
+brute-force instructions
+credential attack instructions
+destructive procedures
+real data exfiltration instructions
+unrestricted exploit chaining
+```
+
+Current v0.3 runtime skill targets:
+
+```text
+passive_recon
+security_headers
+cors
+reporting
+risk_gate
+```
+
+Future runtime skill targets:
+
+```text
+auth_access_control
+idor
+open_redirect
+exposed_files
+graphql
+```
+
+### Required SKILL.md Format
+
+Each runtime `SKILL.md` should include:
+
+```text
+# Skill Name
+
+## Purpose
+
+## When to Use
+
+## Preconditions
+
+## Allowed Actions
+
+## Disallowed Actions
+
+## Required Evidence
+
+## Validation Rules
+
+## False Positive Rules
+
+## Escalation Rules
+
+## Output Schema
+```
+
+### Runtime Skill Usage
+
+Future planner or runtime agent may use skills to improve decision quality.
+
+Runtime skills should guide:
+
+```text
+classification
+evidence collection
+false-positive reduction
+manual validation decision
+reporting decision
+risk escalation
+```
+
+Runtime skills should not directly execute actions.
+
+---
+
+## Skill Loader
+
+Location:
+
+```text
+tools/skill_loader.py
+```
+
+v0.3 responsibility:
+
+* Load local Markdown skill files from `skills/agent_runtime/<skill_name>/SKILL.md`.
+* Return skill content as text.
+* Return safe structured metadata.
+* Fail safely when the skill does not exist.
+* Reject path traversal attempts.
+* Reject absolute paths.
+* Reject unsafe skill names.
+
+The skill loader must not:
+
+```text
+execute SKILL.md content
+execute Python code
+call MCP tools
+call workflows
+send HTTP requests
+modify findings
+modify config
+modify logs
+modify target state
+```
+
+Expected successful return shape:
 
 ```json
 {
-  "target": "example.com",
-  "goal": "authorized_web_pentest",
-  "steps": [
-    {
-      "step_id": "scope-check",
-      "tool": "tool_check_scope",
-      "risk_level": "safe",
-      "requires_approval": false
-    },
-    {
-      "step_id": "passive-recon",
-      "tool": "tool_safe_passive_recon_workflow",
-      "risk_level": "low",
-      "requires_approval": true
-    }
-  ]
+  "loaded": true,
+  "skill_name": "cors",
+  "path": "skills/agent_runtime/cors/SKILL.md",
+  "content": "..."
 }
 ```
 
-### `risk_gate.py`
+Expected failure return shape:
 
-v0.2 responsibility:
+```json
+{
+  "loaded": false,
+  "skill_name": "unknown_skill",
+  "path": null,
+  "content": "",
+  "error": "Skill not found."
+}
+```
 
-* Evaluate tool risk.
-* Check if a tool is allowed in the current mode.
-* Require approval for low, medium, and high risk actions.
-* Deny unknown or blocked tools by default.
+Security requirements:
 
-### `approval_controller.py`
+* Skill name must not contain `..`.
+* Skill name must not be an absolute path.
+* Skill name must not contain path separators that escape the skill directory.
+* Loader must resolve paths safely under `skills/agent_runtime`.
+* Loader must return text only.
+* Loader must never execute skill content.
 
-v0.2 responsibility:
+---
 
-* Build approval request objects.
-* Explain estimated requests, risk level, state change risk, and credential usage.
-* Prepare data that the UI or LLM can show before execution.
+## Codex Development Skill Layer
 
-### `execution_state.py`
+Location:
 
-Future responsibility:
+```text
+skills/codex_dev/
+```
 
-* Track current target.
-* Track completed steps.
-* Track approvals.
-* Track request budget.
-* Track workflow state.
+Purpose:
 
-### `task_router.py`
+Codex development skills help maintain the project.
 
-Future responsibility:
+They define:
 
-* Route approved plan steps to the proper MCP workflow.
-* Prevent the LLM from directly selecting unsafe actions.
+* How to add a workflow
+* How to write tests
+* How to maintain architecture
+* How to update documentation
+* How to keep `server.py` thin
+
+Codex skills are not used by the runtime penetration testing agent.
 
 ---
 
@@ -483,6 +740,7 @@ Workflow rules:
 * No workflow may perform unrestricted exploit chaining.
 * No workflow may perform brute force, DoS, credential stuffing, or mass fuzzing.
 * Workflows should be deterministic and testable.
+* Medium/high risk validation must go through `risk_gate` and explicit approval.
 
 ---
 
@@ -510,14 +768,13 @@ finding_summarizer.py
 storage.py
 logger.py
 report_writer.py
+policy_loader.py
 ```
 
-Planned tools:
+v0.3 planned tool:
 
 ```text
-policy_loader.py
 skill_loader.py
-evidence_store.py
 ```
 
 Rules:
@@ -527,6 +784,7 @@ Rules:
 * External-request tools should be called from workflows.
 * Tools should return structured dictionaries.
 * Tools should avoid storing sensitive content.
+* Tools that only read local files must still fail safely.
 
 ---
 
@@ -578,93 +836,6 @@ Validator rules:
 * Validators must not perform exploitation.
 * Validators must not claim confirmed impact without evidence.
 * Validators should be conservative.
-
----
-
-## Skill Layer
-
-Location:
-
-```text
-skills/
-```
-
-There are two skill categories:
-
-```text
-skills/agent_runtime/
-skills/codex_dev/
-```
-
-### Runtime Skills
-
-Location:
-
-```text
-skills/agent_runtime/
-```
-
-Purpose:
-
-Runtime skills are for the future autonomous security testing AI agent.
-
-They define:
-
-* When to use a skill
-* Preconditions
-* Allowed actions
-* Disallowed actions
-* Evidence requirements
-* Validation rules
-* False-positive rules
-* Escalation rules
-* Output schemas
-
-Runtime skills are not executable code.
-
-Runtime skills must not contain unrestricted attack payload lists, brute-force instructions, credential attacks, or destructive procedures.
-
-Current runtime skill targets:
-
-```text
-passive_recon
-security_headers
-cors
-reporting
-risk_gate
-```
-
-Future runtime skill targets:
-
-```text
-auth_access_control
-idor
-open_redirect
-exposed_files
-graphql
-```
-
-### Codex Development Skills
-
-Location:
-
-```text
-skills/codex_dev/
-```
-
-Purpose:
-
-Codex development skills help maintain the project.
-
-They define:
-
-* How to add a workflow
-* How to write tests
-* How to maintain architecture
-* How to update documentation
-* How to keep `server.py` thin
-
-Codex skills are not used by the runtime penetration testing agent.
 
 ---
 
@@ -725,23 +896,11 @@ If no rules exist yet, use:
 
 ### `tool_risk_profiles.json`
 
-v0.2 source of truth for tool risk classification.
+Source of truth for tool risk classification.
 
-Example:
+Any exposed MCP tool must have a profile here.
 
-```json
-{
-  "tool_safe_passive_recon_workflow": {
-    "risk_level": "low",
-    "external_requests": true,
-    "default_requires_approval": true,
-    "max_requests": 3,
-    "changes_state": false,
-    "uses_credentials": false,
-    "allowed_modes": ["authorized", "lab"]
-  }
-}
-```
+Unknown tools must be denied by default.
 
 ---
 
@@ -928,10 +1087,12 @@ No external request.
 
 Examples:
 
-* `tool_check_scope`
-* `tool_summarize_findings`
-* `tool_write_report_draft`
-* future `tool_evaluate_action_risk`
+```text
+tool_check_scope
+tool_evaluate_action_risk
+tool_summarize_findings
+tool_write_report_draft
+```
 
 ### Low
 
@@ -939,10 +1100,12 @@ External request, but limited and non-destructive.
 
 Examples:
 
-* `tool_safe_http_probe_workflow`
-* `tool_safe_security_headers_workflow`
-* `tool_safe_cors_observation_workflow`
-* `tool_safe_passive_recon_workflow`
+```text
+tool_safe_http_probe_workflow
+tool_safe_security_headers_workflow
+tool_safe_cors_observation_workflow
+tool_safe_passive_recon_workflow
+```
 
 ### Medium
 
@@ -950,10 +1113,12 @@ More targeted validation or multiple controlled requests.
 
 Examples:
 
-* Future JS endpoint extraction
-* Future robots/security.txt/sitemap workflow
-* Future exposed file observation
-* Future open redirect observation
+```text
+future JS endpoint extraction
+future robots/security.txt/sitemap workflow
+future exposed file observation
+future open redirect observation
+```
 
 ### High
 
@@ -961,9 +1126,11 @@ Requires credentials, account setup, or authorization-sensitive validation.
 
 Examples:
 
-* Future authz review
-* Future IDOR validation
-* Future authenticated API comparison
+```text
+future authz review
+future IDOR validation
+future authenticated API comparison
+```
 
 ### Blocked
 
@@ -971,13 +1138,15 @@ Never automate.
 
 Examples:
 
-* Brute force
-* DoS
-* Mass fuzzing
-* Credential stuffing
-* Destructive actions
-* Unrestricted exploit chains
-* Real data exfiltration
+```text
+brute force
+DoS
+mass fuzzing
+credential stuffing
+destructive actions
+unrestricted exploit chains
+real data exfiltration
+```
 
 ### Unknown
 
@@ -987,104 +1156,130 @@ Any tool missing from `tool_risk_profiles.json` should be treated as unknown and
 
 ---
 
-## v0.2 Implementation Plan
+## v0.3 Implementation Plan
 
 The next implementation target is:
 
 ```text
-Risk Gate and Execution Policy
+Runtime Skills and Skill Loader
 ```
 
-Add:
+Step 1:
 
 ```text
-agent/__init__.py
-agent/risk_gate.py
-agent/approval_controller.py
-tools/policy_loader.py
-config/tool_risk_profiles.json
-tests/test_risk_gate.py
-docs/TOOL_RISK_MODEL.md
+tools/skill_loader.py
+tests/test_skill_loader.py
 ```
 
-Optional after tests pass:
+Step 2:
 
 ```text
-tool_evaluate_action_risk
+skills/agent_runtime/passive_recon/SKILL.md
+skills/agent_runtime/security_headers/SKILL.md
+skills/agent_runtime/cors/SKILL.md
+skills/agent_runtime/reporting/SKILL.md
+skills/agent_runtime/risk_gate/SKILL.md
 ```
 
-in:
+Step 3:
 
 ```text
-server.py
+docs/RUNTIME_SKILLS.md
+docs/CURRENT_STATE.md
 ```
 
 ---
 
-## v0.2 Acceptance Criteria
+## v0.3 Acceptance Criteria
 
-v0.2 is complete when:
+v0.3 is complete when:
 
-1. `risk_gate.py` can classify tool actions as `safe`, `low`, `medium`, `high`, `blocked`, or `unknown`.
-2. Unknown tools are denied by default.
-3. Blocked tools are denied.
-4. Low, medium, and high risk tools require approval unless explicitly configured otherwise.
-5. `tool_risk_profiles.json` contains profiles for all exposed MCP tools.
-6. `approval_controller.py` can build approval request objects.
-7. `tests/test_risk_gate.py` passes.
-8. Existing workflow tests still pass.
-9. No existing workflow behavior is changed.
-10. No new vulnerability workflow is added in v0.2.
-11. `server.py` remains thin.
+1. `tools/skill_loader.py` can safely load `skills/agent_runtime/<skill_name>/SKILL.md`.
+2. `skill_loader.py` rejects path traversal.
+3. `skill_loader.py` rejects absolute paths.
+4. `skill_loader.py` does not execute skill content.
+5. `skill_loader.py` does not call workflows.
+6. `skill_loader.py` does not send HTTP requests.
+7. `tests/test_skill_loader.py` passes.
+8. Runtime `SKILL.md` files exist for:
+
+   * passive_recon
+   * security_headers
+   * cors
+   * reporting
+   * risk_gate
+9. Runtime skill files follow the standard format.
+10. `docs/RUNTIME_SKILLS.md` explains runtime skills and their boundaries.
+11. Existing `tests/test_risk_gate.py` still passes.
+12. No new vulnerability workflow is added.
+13. No existing workflow behavior is changed.
+14. `server.py` remains unchanged unless explicitly requested later.
 
 ---
 
-## Current Exposed MCP Tools
+## Future v0.4 Direction
 
-Recommended current exposed MCP tools:
-
-```text
-tool_check_scope
-tool_safe_http_probe_workflow
-tool_safe_security_headers_workflow
-tool_safe_cors_observation_workflow
-tool_safe_passive_recon_workflow
-tool_summarize_findings
-tool_write_report_draft
-```
-
-Optional after v0.2:
+Future milestone:
 
 ```text
-tool_evaluate_action_risk
+v0.4-attack-surface-inventory
 ```
 
-Low-level tools should generally remain hidden from LM Studio.
+Possible v0.4 scope:
+
+```text
+safe_robots_securitytxt_workflow
+safe_sitemap_parser_workflow
+safe_js_endpoint_extraction_workflow
+endpoint_inventory_builder
+```
+
+v0.4 should still follow:
+
+```text
+scope guard
+risk gate
+approval controller
+tool risk profiles
+workflow safety metadata
+no sensitive data storage
+```
 
 ---
 
 ## Testing Strategy
 
-Minimum tests:
+Minimum current tests:
+
+```text
+tests/test_risk_gate.py
+```
+
+v0.3 adds:
+
+```text
+tests/test_skill_loader.py
+```
+
+Future tests:
 
 ```text
 tests/test_scope_guard.py
 tests/test_workflows.py
-tests/test_risk_gate.py
 tests/test_finding_summarizer.py
 ```
 
 Important assertions:
 
-* `example.com` should be in scope for local testing.
-* `google.com` should be out of scope.
-* Out-of-scope workflows must return `stopped=true`.
-* Out-of-scope workflows must return `requests_sent=0`.
-* Safe passive recon should return `requests_sent=3`.
 * Risk gate should deny unknown tools.
 * Risk gate should deny blocked tools.
 * Risk gate should require approval for low-risk external workflows.
-* Existing workflow behavior should not change when adding risk gate.
+* Skill loader should load valid local runtime skills.
+* Skill loader should reject missing skills safely.
+* Skill loader should reject path traversal.
+* Skill loader should reject absolute paths.
+* Skill loader should not execute skill content.
+* Existing workflow behavior should not change when adding skill loader.
 
 ---
 
@@ -1103,15 +1298,16 @@ For every change:
 Suggested branch naming:
 
 ```text
-feature/risk-gate
-docs/update-architecture
-test/workflow-regression
+feature/runtime-skills
+docs/update-architecture-v03
+test/skill-loader
 ```
 
 Suggested commit style:
 
 ```text
-Add risk gate and tool risk profiles
-Update architecture docs for v0.2
-Add workflow regression tests
+Update architecture for v0.3 runtime skills
+Add runtime skill loader
+Add runtime agent skill definitions
+Document runtime skills architecture
 ```
