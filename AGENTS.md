@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Commenting Rules
+
+- Generated code should include clear comments for security boundaries, risk decisions, workflow phases, and fail-closed behavior.
+- Public functions should include docstrings explaining purpose, inputs, outputs, and safety constraints.
+- Avoid noisy comments that simply repeat obvious code.
+- Tests should include comments explaining what behavior each test protects.
+
+---
+
 ## Project Goal
 
 This project is an AI-assisted authorized web penetration testing platform built around MCP tools.
