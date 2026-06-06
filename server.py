@@ -16,6 +16,7 @@ from workflows.safe_cors_observation_workflow import safe_cors_observation_workf
 from workflows.safe_passive_recon_workflow import safe_passive_recon_workflow
 from workflows.safe_robots_securitytxt_workflow import safe_robots_securitytxt_workflow
 from workflows.safe_sitemap_parser_workflow import safe_sitemap_parser_workflow
+from workflows.safe_js_endpoint_extraction_workflow import safe_js_endpoint_extraction_workflow
 
 from agent.risk_gate import evaluate_tool_action
 from agent.approval_controller import build_approval_request
@@ -271,6 +272,41 @@ def tool_safe_sitemap_parser_workflow(
         target=target,
         max_sitemap_bytes=max_sitemap_bytes,
         max_urls=max_urls
+    )
+
+
+@mcp.tool()
+def tool_safe_js_endpoint_extraction_workflow(
+    target: str,
+    max_js_files: int = 20,
+    max_js_bytes: int = 500000,
+    max_candidates: int = 100
+) -> dict:
+    """
+    Call the safe JavaScript endpoint extraction workflow.
+
+    This MCP wrapper stays thin and delegates all scope checks, request
+    handling, HTML parsing, JavaScript static parsing, endpoint validation, and
+    inventory candidate building to safe_js_endpoint_extraction_workflow. The
+    risk profile is defined in config/tool_risk_profiles.json.
+
+    Safety boundary:
+    - Scope check is performed inside the workflow before any request.
+    - This tool is medium risk and requires explicit approval through policy.
+    - Default budget is at most 20 JavaScript files.
+    - Hard cap is at most 30 JavaScript files.
+    - Total hard request cap is 31: one HTML request plus up to 30 JS requests.
+    - It does not execute JavaScript or evaluate JavaScript.
+    - It does not request API endpoints extracted from JavaScript.
+    - It is not a crawler.
+    - It does not fuzz, brute force, exploit, or use credentials.
+    - This wrapper does not send HTTP requests directly or build inventory itself.
+    """
+    return safe_js_endpoint_extraction_workflow(
+        target=target,
+        max_js_files=max_js_files,
+        max_js_bytes=max_js_bytes,
+        max_candidates=max_candidates
     )
 
 
