@@ -9,10 +9,20 @@ def build_approval_request(
     """
     Build an approval request object from a risk evaluation result.
 
-    This function does not execute tools, call workflows, or send requests.
+    The approval request summarizes why a tool action needs review and what
+    safety-relevant properties are declared in its risk profile.
+
+    This function does not execute tools, call workflows, send external
+    requests, or modify runtime state. It only transforms an existing risk
+    evaluation dict into a stable approval-request schema.
+
+    Safety boundary: missing or malformed profile data is represented with
+    conservative defaults so request construction cannot accidentally authorize
+    execution. The risk gate remains the source of allow/deny decisions.
     """
     profile = risk_evaluation.get("profile")
     if not isinstance(profile, dict):
+        # Approval rendering should not crash on malformed evaluation payloads.
         profile = {}
 
     risk_level = risk_evaluation.get("risk_level", "unknown")

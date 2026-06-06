@@ -11,6 +11,13 @@ from agent.risk_gate import evaluate_tool_action
 
 
 def assert_true(condition, message):
+    """
+    Assert test conditions without pulling in external test dependencies.
+
+    This helper does not execute tools, send external requests, or modify
+    application state. It only raises AssertionError when an expected safety
+    property is not preserved.
+    """
     if not condition:
         raise AssertionError(message)
 
@@ -47,6 +54,13 @@ BLOCKED_PROFILE = {
 
 
 def set_profiles(monkeypatch, profiles):
+    """
+    Replace the risk-profile loader with an in-memory policy for tests.
+
+    This does not execute tools, call workflows, or send external requests. The
+    only state change is temporary test-local monkeypatching of the loader so
+    each test can exercise a specific policy shape deterministically.
+    """
     del monkeypatch
     original_loader = risk_gate.load_tool_risk_profiles
     risk_gate.load_tool_risk_profiles = lambda: profiles
@@ -54,10 +68,17 @@ def set_profiles(monkeypatch, profiles):
 
 
 def restore_profiles(original_loader):
+    """
+    Restore the original profile loader after a test.
+
+    This helper does not execute tools, call workflows, or send external
+    requests. It only restores test-local module state changed by set_profiles.
+    """
     risk_gate.load_tool_risk_profiles = original_loader
 
 
 def test_safe_tool_allowed():
+    """Protects the rule that safe tools are allowed without user approval."""
     original_loader = set_profiles(None, {"tool_check_scope": SAFE_PROFILE})
     try:
         result = evaluate_tool_action("tool_check_scope")
@@ -70,6 +91,7 @@ def test_safe_tool_allowed():
 
 
 def test_low_tool_without_approval_blocked():
+    """Protects the approval gate for low-risk external-request tools."""
     original_loader = set_profiles(None, {"tool_safe_http_probe_workflow": LOW_PROFILE})
     try:
         result = evaluate_tool_action("tool_safe_http_probe_workflow", user_approved=False)
@@ -82,6 +104,7 @@ def test_low_tool_without_approval_blocked():
 
 
 def test_low_tool_with_approval_allowed():
+    """Protects the rule that approved low-risk tools can run in allowed mode."""
     original_loader = set_profiles(None, {"tool_safe_http_probe_workflow": LOW_PROFILE})
     try:
         result = evaluate_tool_action("tool_safe_http_probe_workflow", user_approved=True)
@@ -93,6 +116,7 @@ def test_low_tool_with_approval_allowed():
 
 
 def test_unknown_tool_denied():
+    """Protects deny-by-default behavior for unknown tools and empty policy."""
     original_loader = set_profiles(None, {})
     try:
         result = evaluate_tool_action("tool_unknown")
@@ -104,6 +128,7 @@ def test_unknown_tool_denied():
 
 
 def test_blocked_tool_denied():
+    """Protects the rule that blocked tools are denied even if approved."""
     original_loader = set_profiles(None, {"tool_blocked": BLOCKED_PROFILE})
     try:
         result = evaluate_tool_action("tool_blocked", user_approved=True)
@@ -116,6 +141,7 @@ def test_blocked_tool_denied():
 
 
 def test_disallowed_mode_denied():
+    """Protects execution-context enforcement for otherwise approved tools."""
     original_loader = set_profiles(None, {"tool_safe_http_probe_workflow": LOW_PROFILE})
     try:
         result = evaluate_tool_action(
@@ -130,6 +156,7 @@ def test_disallowed_mode_denied():
 
 
 def test_missing_profile_empty_config_fail_closed():
+    """Protects fail-closed behavior when config is present but has no profile."""
     original_loader = set_profiles(None, {})
     try:
         result = evaluate_tool_action("tool_safe_http_probe_workflow")
@@ -141,6 +168,7 @@ def test_missing_profile_empty_config_fail_closed():
 
 
 def test_malformed_profile_fail_closed():
+    """Protects fail-closed behavior when a profile is incomplete or malformed."""
     malformed_profile = {
         "risk_level": "low",
         "external_requests": True,
@@ -157,6 +185,7 @@ def test_malformed_profile_fail_closed():
 
 
 def test_approval_controller_builds_request():
+    """Protects stable approval-request fields for user approval review."""
     original_loader = set_profiles(None, {"tool_safe_http_probe_workflow": LOW_PROFILE})
     try:
         evaluation = evaluate_tool_action(
