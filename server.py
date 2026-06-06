@@ -17,6 +17,7 @@ from workflows.safe_passive_recon_workflow import safe_passive_recon_workflow
 from workflows.safe_robots_securitytxt_workflow import safe_robots_securitytxt_workflow
 from workflows.safe_sitemap_parser_workflow import safe_sitemap_parser_workflow
 from workflows.safe_js_endpoint_extraction_workflow import safe_js_endpoint_extraction_workflow
+from workflows.safe_bounded_crawl_workflow import safe_bounded_crawl_workflow
 
 from agent.risk_gate import evaluate_tool_action
 from agent.approval_controller import build_approval_request
@@ -307,6 +308,48 @@ def tool_safe_js_endpoint_extraction_workflow(
         max_js_files=max_js_files,
         max_js_bytes=max_js_bytes,
         max_candidates=max_candidates
+    )
+
+
+@mcp.tool()
+def tool_safe_bounded_crawl_workflow(
+    target: str,
+    max_pages: int = 30,
+    max_depth: int = 2,
+    max_requests: int = 30,
+    rate_delay_seconds: float = 0.5,
+    max_links_per_page: int = 200
+) -> dict:
+    """
+    Call the safe bounded in-scope crawl workflow.
+
+    This MCP wrapper stays thin and delegates all scope checks, request
+    handling, bounded crawling, HTML parsing, URL queue management, endpoint
+    validation, and inventory candidate building to safe_bounded_crawl_workflow.
+    The risk profile is defined in config/tool_risk_profiles.json.
+
+    Safety boundary:
+    - Scope check is performed inside the workflow before any request.
+    - This tool is medium risk and requires explicit approval through policy.
+    - Default max_pages is 30.
+    - Default max_depth is 2.
+    - Default max_requests is 30.
+    - It is a bounded in-scope crawler, not unrestricted crawling.
+    - It only builds attack surface inventory and does not validate vulnerabilities.
+    - It does not submit forms.
+    - It does not use credentials.
+    - It does not fuzz, brute force, or exploit.
+    - It does not download JavaScript; script src values become inventory candidates only.
+    - JavaScript endpoint extraction is handled by tool_safe_js_endpoint_extraction_workflow.
+    - This wrapper does not send HTTP requests directly or build inventory itself.
+    """
+    return safe_bounded_crawl_workflow(
+        target=target,
+        max_pages=max_pages,
+        max_depth=max_depth,
+        max_requests=max_requests,
+        rate_delay_seconds=rate_delay_seconds,
+        max_links_per_page=max_links_per_page
     )
 
 
