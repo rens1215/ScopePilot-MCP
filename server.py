@@ -14,6 +14,8 @@ from workflows.safe_http_probe_workflow import safe_http_probe_workflow
 from workflows.safe_security_headers_workflow import safe_security_headers_workflow
 from workflows.safe_cors_observation_workflow import safe_cors_observation_workflow
 from workflows.safe_passive_recon_workflow import safe_passive_recon_workflow
+from workflows.safe_robots_securitytxt_workflow import safe_robots_securitytxt_workflow
+from workflows.safe_sitemap_parser_workflow import safe_sitemap_parser_workflow
 
 from agent.risk_gate import evaluate_tool_action
 from agent.approval_controller import build_approval_request
@@ -224,6 +226,52 @@ def tool_safe_passive_recon_workflow(target: str) -> dict:
     Expected total requests: 3.
     """
     return safe_passive_recon_workflow(target)
+
+
+@mcp.tool()
+def tool_safe_robots_securitytxt_workflow(target: str) -> dict:
+    """
+    Call the safe robots/security.txt/sitemap metadata workflow.
+
+    This MCP wrapper stays thin and delegates all scope checks, request
+    handling, metadata filtering, and inventory candidate building to the
+    workflow. The risk profile is defined in config/tool_risk_profiles.json.
+
+    Safety boundary:
+    - Scope check is performed inside the workflow before any request.
+    - The robots metadata workflow sends at most 3 requests.
+    - This wrapper does not send HTTP requests directly.
+    - This wrapper does not parse, validate, crawl, or build inventory itself.
+    """
+    return safe_robots_securitytxt_workflow(target)
+
+
+@mcp.tool()
+def tool_safe_sitemap_parser_workflow(
+    target: str,
+    max_sitemap_bytes: int = 1048576,
+    max_urls: int = 100
+) -> dict:
+    """
+    Call the safe sitemap parser workflow.
+
+    This MCP wrapper stays thin and delegates all scope checks, request
+    handling, sitemap parsing, URL normalization, validation, and inventory
+    candidate building to the workflow. The risk profile is defined in
+    config/tool_risk_profiles.json.
+
+    Safety boundary:
+    - Scope check is performed inside the workflow before any request.
+    - The sitemap workflow sends at most 1 request, to /sitemap.xml.
+    - The sitemap workflow does not request URLs listed inside the sitemap.
+    - This wrapper does not send HTTP requests directly.
+    - This wrapper does not parse, validate, crawl, or build inventory itself.
+    """
+    return safe_sitemap_parser_workflow(
+        target=target,
+        max_sitemap_bytes=max_sitemap_bytes,
+        max_urls=max_urls
+    )
 
 
 #@mcp.tool()
