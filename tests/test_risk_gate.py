@@ -90,6 +90,20 @@ def test_safe_tool_allowed():
         restore_profiles(original_loader)
 
 
+def test_evaluate_action_risk_tool_is_safe_and_allowed():
+    """Protects the risk-evaluation MCP tool as safe local-only evaluation."""
+    original_loader = set_profiles(None, {"tool_evaluate_action_risk": SAFE_PROFILE})
+    try:
+        result = evaluate_tool_action("tool_evaluate_action_risk")
+
+        assert_true(result["allowed"] is True, "Risk evaluation tool should be allowed")
+        assert_true(result["requires_approval"] is False, "Risk evaluation tool should not require approval")
+        assert_true(result["risk_level"] == "safe", "Risk evaluation tool should be safe")
+        assert_true(result["profile"]["external_requests"] is False, "Risk evaluation tool should not request externally")
+    finally:
+        restore_profiles(original_loader)
+
+
 def test_low_tool_without_approval_blocked():
     """Protects the approval gate for low-risk external-request tools."""
     original_loader = set_profiles(None, {"tool_safe_http_probe_workflow": LOW_PROFILE})
@@ -216,6 +230,7 @@ def test_approval_controller_builds_request():
 
 if __name__ == "__main__":
     test_safe_tool_allowed()
+    test_evaluate_action_risk_tool_is_safe_and_allowed()
     test_low_tool_without_approval_blocked()
     test_low_tool_with_approval_allowed()
     test_unknown_tool_denied()

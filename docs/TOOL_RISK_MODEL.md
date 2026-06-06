@@ -60,12 +60,15 @@
 | Tool | Risk level | External requests | Max requests | Default approval |
 | --- | --- | --- | --- | --- |
 | `tool_check_scope` | `safe` | false | 0 | 不需要 |
+| `tool_evaluate_action_risk` | `safe` | false | 0 | 不需要 |
 | `tool_safe_http_probe_workflow` | `low` | true | 1 | 需要 |
 | `tool_safe_security_headers_workflow` | `low` | true | 1 | 需要 |
 | `tool_safe_cors_observation_workflow` | `low` | true | 1 | 需要 |
 | `tool_safe_passive_recon_workflow` | `low` | true | 3 | 需要 |
 | `tool_summarize_findings` | `safe` | false | 0 | 不需要 |
 | `tool_write_report_draft` | `safe` | false | 0 | 不需要 |
+
+`tool_evaluate_action_risk` 是 `safe` tool，因為它只做本機 risk evaluation 與 approval request 組裝。它不會執行被評估的 tool、不會呼叫 workflow、不會發送 HTTP request，也不會發送任何外部 request。
 
 所有目前 exposed MCP tools 的 `allowed_modes` 都包含：
 
