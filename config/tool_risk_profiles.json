@@ -1,0 +1,86 @@
+{
+  "tool_check_scope": {
+    "risk_level": "safe",
+    "external_requests": false,
+    "default_requires_approval": false,
+    "max_requests": 0,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  },
+  "tool_safe_http_probe_workflow": {
+    "risk_level": "low",
+    "external_requests": true,
+    "default_requires_approval": true,
+    "max_requests": 1,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  },
+  "tool_safe_security_headers_workflow": {
+    "risk_level": "low",
+    "external_requests": true,
+    "default_requires_approval": true,
+    "max_requests": 1,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  },
+  "tool_safe_cors_observation_workflow": {
+    "risk_level": "low",
+    "external_requests": true,
+    "default_requires_approval": true,
+    "max_requests": 1,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  },
+  "tool_safe_passive_recon_workflow": {
+    "risk_level": "low",
+    "external_requests": true,
+    "default_requires_approval": true,
+    "max_requests": 3,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  },
+  "tool_summarize_findings": {
+    "risk_level": "safe",
+    "external_requests": false,
+    "default_requires_approval": false,
+    "max_requests": 0,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  },
+  "tool_write_report_draft": {
+    "risk_level": "safe",
+    "external_requests": false,
+    "default_requires_approval": false,
+    "max_requests": 0,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  }
+}
