@@ -23,10 +23,10 @@ This project is not an unrestricted attack automation tool. Every external actio
 Current stable version:
 
 ```text
-v0.3-runtime-skills-and-skill-loader
+v0.4-attack-surface-inventory
 ```
 
-Completed through v0.3:
+Completed through v0.4:
 
 * MCP server integration
 * Scope guard
@@ -50,6 +50,20 @@ Completed through v0.3:
 * Runtime agent skill definitions
 * Runtime skill documentation
 * Runtime skill folder structure
+* Attack surface inventory foundation
+* URL normalizer
+* Endpoint inventory builder
+* Inventory validator
+* Safe robots/security.txt/sitemap metadata workflow
+* Safe sitemap parser workflow
+* JavaScript endpoint extractor
+* Safe JavaScript endpoint extraction workflow
+* HTML link extractor
+* Crawl queue
+* Safe bounded in-scope crawl workflow
+* Risk profiles for v0.4 tools
+* MCP wrappers for v0.4 tools
+* v0.4 workflow tests
 * Git version control
 * Logging
 * Simplified LM Studio toolbox
@@ -63,15 +77,19 @@ tool_safe_http_probe_workflow
 tool_safe_security_headers_workflow
 tool_safe_cors_observation_workflow
 tool_safe_passive_recon_workflow
+tool_safe_robots_securitytxt_workflow
+tool_safe_sitemap_parser_workflow
+tool_safe_js_endpoint_extraction_workflow
+tool_safe_bounded_crawl_workflow
 tool_summarize_findings
 tool_write_report_draft
 ```
 
 ---
 
-## Next Architecture Target
+## Completed Architecture Target
 
-Next milestone:
+Completed milestone:
 
 ```text
 v0.4-attack-surface-inventory
@@ -95,6 +113,26 @@ v0.4 does not perform fuzzing, brute force, credential testing, destructive vali
 v0.4 builds a safe target map for later versions.
 
 v0.4 may support bounded in-scope crawling for inventory building only. It must not perform unrestricted crawling or unlimited recursive crawling.
+
+v0.4 inventory observations are not vulnerability proof. They identify entry points, classify endpoint candidates, and prepare later controlled validation.
+
+v0.4 safety boundaries:
+
+* No exploit automation.
+* No fuzzing.
+* No brute force.
+* No credential testing.
+* No form submission.
+* No state-changing actions.
+* No sensitive data storage.
+* Bounded crawler requires `risk_gate` and explicit approval because it is medium risk.
+
+v0.4 request budgets:
+
+* `safe_robots_securitytxt_workflow`: maximum 3 requests.
+* `safe_sitemap_parser_workflow`: maximum 1 request.
+* `safe_js_endpoint_extraction_workflow`: medium risk, maximum 31 requests.
+* `safe_bounded_crawl_workflow`: medium risk, maximum 30 requests.
 
 ---
 
@@ -137,7 +175,7 @@ The goal is to identify high-value areas such as:
 
 v0.4 should add safe inventory capabilities only.
 
-Recommended v0.4 modules:
+Completed v0.4 modules:
 
 ```text
 workflows/safe_robots_securitytxt_workflow.py
@@ -151,12 +189,15 @@ tools/html_link_extractor.py
 tools/crawl_queue.py
 validators/inventory_validator.py
 tests/test_attack_surface_inventory.py
+tests/test_robots_securitytxt_workflow.py
+tests/test_sitemap_parser_workflow.py
+tests/test_js_endpoint_extraction_workflow.py
+tests/test_bounded_crawl_foundation.py
+tests/test_bounded_crawl_workflow.py
 docs/ATTACK_SURFACE_INVENTORY.md
 ```
 
-Not every file must be implemented at once. v0.4 should be built in small steps.
-
-Recommended implementation order:
+Completed implementation steps:
 
 ```text
 Step 1: URL normalization and inventory data model
@@ -164,8 +205,7 @@ Step 2: robots.txt / security.txt / sitemap observation workflow
 Step 3: sitemap parser
 Step 4: safe JS endpoint extraction
 Step 5: safe bounded in-scope crawler
-Step 6: endpoint inventory builder
-Step 7: documentation and tests
+Step 6: documentation and tests
 ```
 
 ---
@@ -228,7 +268,7 @@ Finding Summarizer
 Report Writer
 ```
 
-Current v0.3 flow:
+Current v0.4 flow:
 
 ```text
 User Request
@@ -283,10 +323,10 @@ Workflow Layer
     safe_security_headers_workflow
     safe_cors_observation_workflow
     safe_passive_recon_workflow
-    future safe_robots_securitytxt_workflow
-    future safe_sitemap_parser_workflow
-    future safe_js_endpoint_extraction_workflow
-    future safe_bounded_crawl_workflow
+    safe_robots_securitytxt_workflow
+    safe_sitemap_parser_workflow
+    safe_js_endpoint_extraction_workflow
+    safe_bounded_crawl_workflow
 
 Tool Layer
     scope_guard
@@ -299,16 +339,16 @@ Tool Layer
     logger
     policy_loader
     skill_loader
-    future endpoint_inventory
-    future url_normalizer
-    future js_endpoint_extractor
-    future html_link_extractor
-    future crawl_queue
+    endpoint_inventory
+    url_normalizer
+    js_endpoint_extractor
+    html_link_extractor
+    crawl_queue
 
 Validator Layer
     header_validator
     cors_validator
-    future inventory_validator
+    inventory_validator
     future exposed_file_validator
     future open_redirect_validator
     future authz_validator
@@ -490,20 +530,15 @@ tool_safe_http_probe_workflow
 tool_safe_security_headers_workflow
 tool_safe_cors_observation_workflow
 tool_safe_passive_recon_workflow
+tool_safe_robots_securitytxt_workflow
+tool_safe_sitemap_parser_workflow
+tool_safe_js_endpoint_extraction_workflow
+tool_safe_bounded_crawl_workflow
 tool_summarize_findings
 tool_write_report_draft
 ```
 
-Possible v0.4 exposed tools:
-
-```text
-tool_safe_robots_securitytxt_workflow
-tool_safe_sitemap_parser_workflow
-tool_safe_js_endpoint_extraction_workflow
-tool_summarize_endpoint_inventory
-```
-
-Only expose these after:
+All exposed MCP tools must satisfy:
 
 * workflow is implemented
 * tests pass
@@ -987,11 +1022,6 @@ safe_http_probe_workflow.py
 safe_security_headers_workflow.py
 safe_cors_observation_workflow.py
 safe_passive_recon_workflow.py
-```
-
-v0.4 candidate workflows:
-
-```text
 safe_robots_securitytxt_workflow.py
 safe_sitemap_parser_workflow.py
 safe_js_endpoint_extraction_workflow.py
@@ -1062,11 +1092,6 @@ logger.py
 report_writer.py
 policy_loader.py
 skill_loader.py
-```
-
-v0.4 candidate tools:
-
-```text
 url_normalizer.py
 endpoint_inventory.py
 js_endpoint_extractor.py
@@ -1103,11 +1128,6 @@ Current validators:
 ```text
 header_validator.py
 cors_validator.py
-```
-
-v0.4 candidate validator:
-
-```text
 inventory_validator.py
 ```
 
@@ -1172,7 +1192,7 @@ config/tool_risk_profiles.json
 
 Unknown tools must be denied by default.
 
-v0.4 candidate tools should be added to risk profiles only when they are implemented and exposed.
+v0.4 exposed tools have risk profiles in `config/tool_risk_profiles.json`.
 
 ---
 
@@ -1381,8 +1401,8 @@ tool_safe_http_probe_workflow
 tool_safe_security_headers_workflow
 tool_safe_cors_observation_workflow
 tool_safe_passive_recon_workflow
-future tool_safe_robots_securitytxt_workflow
-future tool_safe_sitemap_parser_workflow
+tool_safe_robots_securitytxt_workflow
+tool_safe_sitemap_parser_workflow
 ```
 
 ### Medium
@@ -1395,8 +1415,8 @@ Examples:
 future exposed file observation
 future open redirect observation
 future GraphQL observation
-future tool_safe_js_endpoint_extraction_workflow
-future safe bounded in-scope crawl workflow
+tool_safe_js_endpoint_extraction_workflow
+tool_safe_bounded_crawl_workflow
 ```
 
 ### High
@@ -1435,15 +1455,15 @@ Any tool missing from `tool_risk_profiles.json` should be treated as unknown and
 
 ---
 
-## v0.4 Implementation Plan
+## v0.4 Completion Status
 
-The next implementation target is:
+Completed implementation target:
 
 ```text
 Attack Surface Inventory
 ```
 
-Recommended implementation order:
+Completed implementation order:
 
 ### Step 1: Inventory foundation
 
@@ -1460,7 +1480,7 @@ docs/ATTACK_SURFACE_INVENTORY.md
 ```text
 workflows/safe_robots_securitytxt_workflow.py
 config/tool_risk_profiles.json
-server.py wrapper only after tests pass
+server.py wrapper
 ```
 
 ### Step 3: Sitemap workflow
@@ -1468,7 +1488,7 @@ server.py wrapper only after tests pass
 ```text
 workflows/safe_sitemap_parser_workflow.py
 config/tool_risk_profiles.json
-server.py wrapper only after tests pass
+server.py wrapper
 ```
 
 ### Step 4: JS endpoint extraction workflow
@@ -1477,7 +1497,7 @@ server.py wrapper only after tests pass
 tools/js_endpoint_extractor.py
 workflows/safe_js_endpoint_extraction_workflow.py
 config/tool_risk_profiles.json
-server.py wrapper only after tests pass
+server.py wrapper
 ```
 
 ### Step 5: Bounded in-scope crawl workflow
@@ -1487,19 +1507,19 @@ tools/html_link_extractor.py
 tools/crawl_queue.py
 workflows/safe_bounded_crawl_workflow.py
 config/tool_risk_profiles.json
-server.py wrapper only after tests pass
+server.py wrapper
 ```
 
 The bounded crawler should be classified as `medium` risk and require `risk_gate` plus explicit approval.
 
-### Step 6: Inventory summary
+### Step 6: Documentation and tests
 
 ```text
-tool_summarize_endpoint_inventory
-docs/ATTACK_SURFACE_INVENTORY.md update
+docs/ATTACK_SURFACE_INVENTORY.md
+workflow tests
 ```
 
-Do not implement all steps at once.
+v0.4 is marked completed. It builds attack surface inventory only and does not perform vulnerability validation.
 
 ---
 
@@ -1546,7 +1566,18 @@ controlled_idor_validation_preparation
 
 v0.5 should use the v0.4 inventory as input.
 
-The purpose of v0.5 is to validate selected high-value inventory items under strict risk gate, approval, and evidence rules.
+The purpose of v0.5 is controlled validation planning for selected high-value inventory items. It may include controlled open redirect observation, exposed file observation, GraphQL observation, and authz/IDOR validation preparation.
+
+v0.5 is not complete yet.
+
+v0.5 must still use:
+
+* Scope guard.
+* Risk gate.
+* Explicit approval.
+* Request limits.
+* Evidence rules.
+* Sensitive-data minimization.
 
 ---
 
@@ -1563,8 +1594,11 @@ v0.4 adds:
 
 ```text
 tests/test_attack_surface_inventory.py
-tests/test_url_normalizer.py
-tests/test_js_endpoint_extractor.py
+tests/test_robots_securitytxt_workflow.py
+tests/test_sitemap_parser_workflow.py
+tests/test_js_endpoint_extraction_workflow.py
+tests/test_bounded_crawl_foundation.py
+tests/test_bounded_crawl_workflow.py
 ```
 
 Future tests:

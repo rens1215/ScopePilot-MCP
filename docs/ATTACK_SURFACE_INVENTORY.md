@@ -1,67 +1,134 @@
 # Attack Surface Inventory
 
-本文說明 v0.4-attack-surface-inventory 的 Step 1：Inventory foundation。
+本文件說明 `v0.4-attack-surface-inventory` 目前已完成的 attack surface inventory 能力、安全邊界、request budget，以及 v0.4 與 v0.5 的分界。
 
-## 目的
+## 目前狀態
 
-Attack surface inventory 的目的是建立目標公開入口點的安全、結構化地圖，協助未來 runtime AI agent 在更深層驗證前先理解：
+`v0.4-attack-surface-inventory` 目前標記為 completed。
 
-- 有哪些 endpoint 或 URL candidate。
-- 每個 endpoint 來自哪個 discovery source。
-- Endpoint 可能是 API、auth page、admin candidate、static asset、documentation、frontend 或 unknown。
-- 哪些 endpoint 值得後續 controlled validation。
-- 哪些 endpoint 可能只是低價值或高噪音項目。
+v0.4 的目的，是在授權且 in-scope 的目標上建立安全、可審計的 attack surface inventory。Inventory 只用來回答「有哪些公開入口點、來源是什麼、可能是哪類 endpoint、後續應如何排序」，不是漏洞證明，也不是自動漏洞驗證。
 
-Inventory 不是漏洞證明，也不代表 endpoint 可被利用。
+## 已完成內容
 
-## v0.4 Step 1 範圍
+v0.4 已完成下列基礎能力：
 
-Step 1 只做 in-memory inventory foundation：
+* Attack surface inventory foundation。
+* `tools/url_normalizer.py`。
+* `tools/endpoint_inventory.py`。
+* `validators/inventory_validator.py`。
+* `workflows/safe_robots_securitytxt_workflow.py`。
+* `workflows/safe_sitemap_parser_workflow.py`。
+* `tools/js_endpoint_extractor.py`。
+* `workflows/safe_js_endpoint_extraction_workflow.py`。
+* `tools/html_link_extractor.py`。
+* `tools/crawl_queue.py`。
+* `workflows/safe_bounded_crawl_workflow.py`。
+* v0.4 tools 的 risk profiles。
+* v0.4 workflows 的 MCP wrappers。
+* v0.4 workflow tests。
 
-- URL normalization。
-- Inventory item 建立。
-- Inventory item 去重。
-- Endpoint type 與 priority 的保守分類。
-- 本機 summary aggregation。
+目前已暴露給 LM Studio 的 v0.4 MCP tools：
 
-Step 1 不會：
+```text
+tool_safe_robots_securitytxt_workflow
+tool_safe_sitemap_parser_workflow
+tool_safe_js_endpoint_extraction_workflow
+tool_safe_bounded_crawl_workflow
+```
 
-- 發送 HTTP request。
-- 呼叫 workflow。
-- 新增 MCP tool。
-- 新增 vulnerability workflow。
-- 寫入 `data/`。
-- 執行 exploit、fuzzing、bruteforce、credential testing、DoS 或 destructive action。
+## 安全邊界
 
-## URL Normalization 規則
+v0.4 只建立 attack surface inventory，不確認漏洞成立。
 
-`tools/url_normalizer.py` 負責將 URL 字串正規化成可用於 inventory 去重的格式。
+v0.4 不做：
 
-目前規則：
+* Exploit。
+* Fuzzing。
+* Brute force。
+* Credential testing。
+* Form submission。
+* State-changing action。
+* DoS 或 stress testing。
+* Destructive action。
+* Real data exfiltration。
+* Sensitive data storage。
+* Unrestricted crawling。
+* Unlimited recursive crawling。
 
-- 支援 absolute HTTP/HTTPS URL。
-- 支援 `base_url` 加 relative path。
-- 移除 fragment，例如 `#section`。
-- 正規化 scheme 與 hostname 大小寫。
-- 保留 path 與 query。
-- 拒絕 unsupported scheme，例如 `javascript:`、`data:`、`file:`、`ftp:`。
-- 拒絕 URL credentials，避免將 username/password 帶入 inventory metadata。
-- 回傳 dict，不將 parse error raise 給 caller。
+Inventory 與 evidence 只能保存非敏感 metadata，例如 normalized URL、discovery source、status code、content type、body size、safe headers summary、endpoint type、priority、confidence。不得保存 cookie、token、secret、personal data、payment data 或完整敏感 response body。
 
-URL normalizer 只做本機字串解析，不發送 request。
+`safe_bounded_crawl_workflow` 是 medium risk，必須經過 `risk_gate` 與 explicit approval 才能執行。
+
+## Request Budget
+
+v0.4 workflows 的 request budget 如下：
+
+| Workflow | Risk level | Max requests | 說明 |
+| --- | --- | ---: | --- |
+| `safe_robots_securitytxt_workflow` | low | 3 | 只觀察 `/robots.txt`、`/.well-known/security.txt`、`/sitemap.xml`。 |
+| `safe_sitemap_parser_workflow` | low | 1 | 只請求 `/sitemap.xml`，不請求 sitemap 內列出的 URL。 |
+| `safe_js_endpoint_extraction_workflow` | medium | 31 | 1 個 target HTML request 加上最多 30 個 same-scope JS requests。 |
+| `safe_bounded_crawl_workflow` | medium | 30 | 受 `max_pages`、`max_depth`、`max_requests` 與 `rate_delay_seconds` 限制。 |
+
+## Workflow 說明
+
+### robots/security.txt/sitemap metadata
+
+`safe_robots_securitytxt_workflow` 只觀察固定 public metadata paths：
+
+```text
+/robots.txt
+/.well-known/security.txt
+/sitemap.xml
+```
+
+它不會自動掃 robots.txt 裡列出的 path，也不會把 `Disallow` 視為掃描授權。
+
+### Sitemap parser
+
+`safe_sitemap_parser_workflow` 只請求 in-scope target 的 `/sitemap.xml`，解析 XML 中的 URL，並把 same-scope candidates 轉成 inventory candidates。
+
+它不會自動請求 sitemap 內列出的每個 URL，也不會做無限制遞迴 sitemap index 解析。
+
+### JavaScript endpoint extraction
+
+`safe_js_endpoint_extraction_workflow` 用於大型前端站點的 bounded static extraction。
+
+它會請求 target HTML，從 HTML 中找出 directly referenced same-scope JavaScript files，並對有限數量的 JS 文字做靜態 endpoint candidate extraction。
+
+它不執行 JavaScript、不 evaluate JavaScript、不請求 JS 中提取出的 API endpoint。JS 中提取出的 endpoint 只會成為 inventory candidate。
+
+### Bounded in-scope crawl
+
+`safe_bounded_crawl_workflow` 是 bounded in-scope crawler，不是 unrestricted crawler。
+
+它只處理 same-host 或 configured in-scope links，並受下列限制約束：
+
+* `max_pages`。
+* `max_depth`。
+* `max_requests`。
+* `rate_delay_seconds`。
+* allowed content type，例如 `text/html` 與 `application/xhtml+xml`。
+
+它可以從 HTML 中收集：
+
+* `<a href>`。
+* `<script src>`。
+
+`<a href>` 可加入 crawl queue；`<script src>` 只會成為 inventory candidate，不會由 crawler 下載。JavaScript endpoint extraction 由 `tool_safe_js_endpoint_extraction_workflow` 負責。
+
+Crawler 不提交 form、不使用 cookies/tokens/credentials/session、不使用 POST/PUT/PATCH/DELETE、不做 state-changing action。
 
 ## Endpoint Inventory Schema
 
-`tools/endpoint_inventory.py` 建立的 inventory item 以 `docs/ARCHITECTURE.md` 的 Endpoint Inventory Data Model 為基準。
-
-建議 schema：
+Inventory item 應盡量符合下列資料模型：
 
 ```json
 {
   "target": "",
   "url": "",
   "normalized_url": "",
-  "source": "robots | security_txt | sitemap | html_script_tag | javascript_static_analysis | manual",
+  "source": "robots | security_txt | sitemap | html_link | html_script_tag | javascript_static_analysis | manual",
   "method_guess": "GET",
   "endpoint_type": "frontend | api | auth_page | admin_candidate | static_asset | documentation | unknown",
   "priority": "low | medium | high",
@@ -87,136 +154,40 @@ URL normalizer 只做本機字串解析，不發送 request。
 }
 ```
 
-Step 1 只在記憶體中建立與處理這些 dict，不保存到 `data/`。
+## Conservative Classification
 
-## Endpoint Type 與 Priority
+`inventory_validator.py` 只做保守分類與降噪，不聲稱任何漏洞成立。
 
-`validators/inventory_validator.py` 只做保守分類與降噪，不做漏洞確認。
+常見 endpoint type：
 
-目前 endpoint type 分類：
+* `api`
+* `auth_page`
+* `admin_candidate`
+* `static_asset`
+* `documentation`
+* `frontend`
+* `unknown`
 
-- `api`: path 或 hostname 顯示 API 特徵，例如 `/api/`。
-- `auth_page`: path 顯示 login、signin、auth、oauth、sso 等特徵。
-- `admin_candidate`: path 顯示 admin、dashboard、console、manage 等特徵。
-- `static_asset`: 常見靜態資產，例如 `.js`、`.css`、image、font、map。
-- `documentation`: docs、swagger、openapi、redoc 等文件型 endpoint。
-- `frontend`: 看起來像一般 frontend route 或頁面。
-- `unknown`: 沒有足夠訊號時的保守分類。
+Priority 只代表後續 triage 或 controlled validation 的排序參考，不代表漏洞嚴重度。
 
-Priority 原則：
+## v0.4 與 v0.5 分界
 
-- `auth_page`、`admin_candidate` 通常較高，因為後續可能需要受控驗證與 approval。
-- `api` 通常中等或較高，因為可能是後續 inventory 或 validation 的重要入口。
-- `documentation` 可能有助於理解 attack surface，但不代表漏洞。
-- `static_asset` 通常較低，主要用於支援 JS extraction 或 frontend mapping。
-- `unknown` 預設低 priority。
+v0.4 only builds attack surface inventory。
 
-所有分類都只是 triage 訊號，不是 vulnerability finding。
+v0.5 should focus on controlled validation planning。可能範圍包含：
 
-## 敏感資料規則
+* Controlled open redirect observation。
+* Controlled exposed file observation。
+* Controlled GraphQL observation。
+* Authz / IDOR validation preparation。
 
-Inventory 不得保存：
+v0.5 尚未完成。後續 v0.5 的任何 validation workflow 仍必須使用：
 
-- Cookie。
-- Token。
-- Secret。
-- Personal data。
-- Payment data。
-- 完整敏感 response body。
-- Credential material。
+* Scope guard。
+* Risk gate。
+* Explicit approval。
+* Request limits。
+* Evidence rules。
+* Sensitive-data minimization。
 
-Evidence 應偏向 metadata，例如 status code、content type、body size、headers summary、normalized URL、discovery source。
-
-## 後續使用方式
-
-後續 v0.4 robots/security.txt/sitemap/JS extraction/bounded crawler workflow 會使用這些 foundation 工具：
-
-- Public metadata workflow 可將 robots/security.txt/sitemap references 正規化後放入 inventory。
-- Sitemap workflow 可將 sitemap URLs 正規化、去重並建立 inventory items。
-- JS extraction workflow 可從 JavaScript 文字中提取 candidate routes，但仍不得執行 JavaScript，也不得請求從 JS 中提取出的 API endpoint。
-- Bounded crawler workflow 可收集同 scope HTML links、script `src`、sitemap links 與 same-scope frontend routes，用於建立 endpoint inventory。
-
-Crawler 的目的只是建立 endpoint inventory，不是漏洞驗證。
-
-## JS Endpoint Extraction Request Budget
-
-`safe_js_endpoint_extraction_workflow` 適合大型 bug bounty domain 的前端 JavaScript endpoint discovery，因此允許較高但仍有硬上限的 request budget。
-
-此 workflow 的限制：
-
-- 預設最多請求 20 個 same-host 或 in-scope JavaScript files。
-- 即使呼叫端要求更多，也最多請求 30 個 JavaScript files。
-- 總 request 硬上限為 31，也就是 1 個 target HTML request 加最多 30 個 JS requests。
-- `risk_level=medium`，必須通過 `risk_gate` 與 explicit approval。
-- 這不是 crawler，不會遞迴追蹤頁面連結。
-- 只會請求 target HTML 與該 HTML 直接引用的 same-host / in-scope JS files。
-- 不會請求 JS 中提取出的 API endpoint；這些 endpoint 只會加入 inventory candidates。
-- 不執行 JavaScript，不 evaluate JavaScript，不提交表單，不使用 cookie / token / credential。
-- 不進行 exploit、fuzzing、bruteforce、DoS 或 state-changing action。
-
-## Bounded In-Scope Crawling
-
-v0.4 允許未來加入 bounded in-scope crawling，但禁止 unrestricted crawling 與 unlimited recursive crawling。
-
-建議未來 workflow：
-
-```text
-workflows/safe_bounded_crawl_workflow.py
-```
-
-建議未來 tools：
-
-```text
-tools/html_link_extractor.py
-tools/crawl_queue.py
-```
-
-`safe_bounded_crawl_workflow` 建議 `risk_level=medium`，必須先通過 `risk_gate` 與 explicit approval。
-
-Bounded crawler 必須遵守：
-
-- 只允許 in-scope domain / subdomain。
-- 只允許 `GET` / `HEAD`。
-- 不允許 `POST` / `PUT` / `PATCH` / `DELETE`。
-- 不提交 form。
-- 不使用 cookie / token / credential。
-- 不 exploit。
-- 不 fuzz。
-- 不 brute force。
-- 不做 state-changing action。
-- 限制 `max_pages`。
-- 限制 `max_depth`。
-- 限制 `max_requests`。
-- 限制 `rate_delay_seconds`。
-- 只處理允許的 content-type，例如 HTML 與安全的 text metadata。
-- 只追蹤 same-scope link。
-- 不保存 cookie、token、secret、personal data、payment data 或完整敏感 response body。
-
-Crawler 可以收集：
-
-- HTML links。
-- Script `src`。
-- Sitemap links。
-- Same-scope frontend routes。
-
-Crawler 不會自動請求 JS 中萃取出的 API endpoint。API candidates 只應加入 inventory，等待後續 risk gate、approval 與 controlled validation。
-
-這些後續 workflow 必須各自遵守 scope guard、risk gate、request limit、safety metadata、敏感資料保護與 approval 規則。
-
-## 安全限制
-
-Attack surface inventory 不得進行：
-
-- Exploit。
-- Fuzzing。
-- Bruteforce。
-- Credential testing。
-- Credential stuffing。
-- DoS 或 stress testing。
-- Destructive action。
-- Unrestricted exploit chaining。
-- Unrestricted crawling。
-- Unlimited recursive crawling。
-- Real data exfiltration。
-
-若後續 validation 需要 medium/high risk action，必須通過 `risk_gate` 與 explicit approval。若 target 不在 scope 內，必須停止。
+v0.5 不應繞過 v0.4 建立的 inventory、安全 metadata、risk profiles 或 approval 邊界。
