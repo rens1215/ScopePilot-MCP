@@ -820,10 +820,22 @@ Purpose:
 * Extract likely endpoint strings and route patterns.
 * Add endpoint candidates to inventory.
 
+Recommended risk level:
+
+```text
+medium
+```
+
+This workflow is bounded static extraction for large frontend applications. It
+is not a crawler, not an exploit workflow, and not vulnerability validation.
+It may send multiple requests, so it requires `risk_gate` and explicit approval.
+
 Rules:
 
 * Must check scope first.
-* Must limit number of JS files.
+* Must default to at most 20 JavaScript files.
+* Must enforce a hard cap of 30 JavaScript files.
+* Must enforce a hard cap of 31 total requests.
 * Must limit file size.
 * Must not execute JavaScript.
 * Must not evaluate JavaScript.
@@ -1371,7 +1383,6 @@ tool_safe_cors_observation_workflow
 tool_safe_passive_recon_workflow
 future tool_safe_robots_securitytxt_workflow
 future tool_safe_sitemap_parser_workflow
-future tool_safe_js_endpoint_extraction_workflow
 ```
 
 ### Medium
@@ -1384,6 +1395,7 @@ Examples:
 future exposed file observation
 future open redirect observation
 future GraphQL observation
+future tool_safe_js_endpoint_extraction_workflow
 future safe bounded in-scope crawl workflow
 ```
 

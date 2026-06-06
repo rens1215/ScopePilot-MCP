@@ -133,10 +133,26 @@ Evidence 應偏向 metadata，例如 status code、content type、body size、he
 
 - Public metadata workflow 可將 robots/security.txt/sitemap references 正規化後放入 inventory。
 - Sitemap workflow 可將 sitemap URLs 正規化、去重並建立 inventory items。
-- JS extraction workflow 可從 JavaScript 文字中提取 candidate routes，但仍不得執行 JavaScript。
+- JS extraction workflow 可從 JavaScript 文字中提取 candidate routes，但仍不得執行 JavaScript，也不得請求從 JS 中提取出的 API endpoint。
 - Bounded crawler workflow 可收集同 scope HTML links、script `src`、sitemap links 與 same-scope frontend routes，用於建立 endpoint inventory。
 
 Crawler 的目的只是建立 endpoint inventory，不是漏洞驗證。
+
+## JS Endpoint Extraction Request Budget
+
+`safe_js_endpoint_extraction_workflow` 適合大型 bug bounty domain 的前端 JavaScript endpoint discovery，因此允許較高但仍有硬上限的 request budget。
+
+此 workflow 的限制：
+
+- 預設最多請求 20 個 same-host 或 in-scope JavaScript files。
+- 即使呼叫端要求更多，也最多請求 30 個 JavaScript files。
+- 總 request 硬上限為 31，也就是 1 個 target HTML request 加最多 30 個 JS requests。
+- `risk_level=medium`，必須通過 `risk_gate` 與 explicit approval。
+- 這不是 crawler，不會遞迴追蹤頁面連結。
+- 只會請求 target HTML 與該 HTML 直接引用的 same-host / in-scope JS files。
+- 不會請求 JS 中提取出的 API endpoint；這些 endpoint 只會加入 inventory candidates。
+- 不執行 JavaScript，不 evaluate JavaScript，不提交表單，不使用 cookie / token / credential。
+- 不進行 exploit、fuzzing、bruteforce、DoS 或 state-changing action。
 
 ## Bounded In-Scope Crawling
 

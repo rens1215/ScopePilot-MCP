@@ -95,6 +95,18 @@
       "lab"
     ]
   },
+  "tool_safe_js_endpoint_extraction_workflow": {
+    "risk_level": "medium",
+    "external_requests": true,
+    "default_requires_approval": true,
+    "max_requests": 31,
+    "changes_state": false,
+    "uses_credentials": false,
+    "allowed_modes": [
+      "authorized",
+      "lab"
+    ]
+  },
   "tool_summarize_findings": {
     "risk_level": "safe",
     "external_requests": false,
