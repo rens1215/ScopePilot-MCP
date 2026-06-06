@@ -86,12 +86,15 @@ This layer helps the future AI agent understand:
 * Which endpoints are likely frontend pages, APIs, auth pages, static assets, admin surfaces, or documentation.
 * Which endpoints should be prioritized for later controlled validation.
 * Which endpoints are likely low-value and should not waste request budget.
+* Which same-scope links can be added to inventory through bounded crawling.
 
 v0.4 does not perform exploitation.
 
 v0.4 does not perform fuzzing, brute force, credential testing, destructive validation, or state-changing validation.
 
 v0.4 builds a safe target map for later versions.
+
+v0.4 may support bounded in-scope crawling for inventory building only. It must not perform unrestricted crawling or unlimited recursive crawling.
 
 ---
 
@@ -126,6 +129,7 @@ The goal is to identify high-value areas such as:
 * JavaScript-discovered routes
 * Sitemap-discovered routes
 * Robots/security.txt/sitemap metadata
+* Same-scope HTML links from bounded crawls
 
 ---
 
@@ -139,9 +143,12 @@ Recommended v0.4 modules:
 workflows/safe_robots_securitytxt_workflow.py
 workflows/safe_sitemap_parser_workflow.py
 workflows/safe_js_endpoint_extraction_workflow.py
+workflows/safe_bounded_crawl_workflow.py
 tools/endpoint_inventory.py
 tools/url_normalizer.py
 tools/js_endpoint_extractor.py
+tools/html_link_extractor.py
+tools/crawl_queue.py
 validators/inventory_validator.py
 tests/test_attack_surface_inventory.py
 docs/ATTACK_SURFACE_INVENTORY.md
@@ -156,8 +163,9 @@ Step 1: URL normalization and inventory data model
 Step 2: robots.txt / security.txt / sitemap observation workflow
 Step 3: sitemap parser
 Step 4: safe JS endpoint extraction
-Step 5: endpoint inventory builder
-Step 6: documentation and tests
+Step 5: safe bounded in-scope crawler
+Step 6: endpoint inventory builder
+Step 7: documentation and tests
 ```
 
 ---
@@ -251,6 +259,7 @@ Attack Surface Inventory
 Endpoint Inventory Builder
 Safe robots/security.txt/sitemap observation
 Safe JS endpoint extraction
+Safe bounded in-scope crawling
 Endpoint prioritization
 ```
 
@@ -277,6 +286,7 @@ Workflow Layer
     future safe_robots_securitytxt_workflow
     future safe_sitemap_parser_workflow
     future safe_js_endpoint_extraction_workflow
+    future safe_bounded_crawl_workflow
 
 Tool Layer
     scope_guard
@@ -292,6 +302,8 @@ Tool Layer
     future endpoint_inventory
     future url_normalizer
     future js_endpoint_extractor
+    future html_link_extractor
+    future crawl_queue
 
 Validator Layer
     header_validator
@@ -710,7 +722,8 @@ The inventory layer must not:
 ```text
 exploit endpoints
 brute force paths
-crawl without limits
+perform unrestricted crawling
+perform unlimited recursive crawling
 perform mass fuzzing
 use credentials
 change target state
@@ -814,9 +827,44 @@ Rules:
 * Must limit file size.
 * Must not execute JavaScript.
 * Must not evaluate JavaScript.
-* Must not crawl arbitrary discovered endpoints.
+* Must not request API endpoints extracted from JavaScript automatically.
+* Must only add API candidates to endpoint inventory.
 * Must not store secrets if accidentally found.
 * Must store only safe metadata, hashes, and endpoint candidates.
+
+### `safe_bounded_crawl_workflow.py`
+
+Purpose:
+
+* Build endpoint inventory from same-scope HTML links and frontend routes.
+* Collect HTML links, script `src`, sitemap links already observed, and same-scope frontend routes.
+* Use bounded in-scope crawling only for inventory discovery, not vulnerability validation.
+
+Recommended risk level:
+
+```text
+medium
+```
+
+Rules:
+
+* Must pass `risk_gate` and explicit approval before execution.
+* Must check scope before any request.
+* Must only follow in-scope domain or subdomain links.
+* Must only use `GET` or `HEAD`.
+* Must not use `POST`, `PUT`, `PATCH`, or `DELETE`.
+* Must not submit forms.
+* Must not use cookies, tokens, credentials, sessions, or authenticated requests.
+* Must not exploit, fuzz, brute force, or perform state-changing actions.
+* Must enforce `max_pages`.
+* Must enforce `max_depth`.
+* Must enforce `max_requests`.
+* Must enforce `rate_delay_seconds`.
+* Must only process allowed content types such as HTML and safe text metadata.
+* Must only track same-scope links.
+* Must not perform unrestricted crawling or unlimited recursive crawling.
+* Must not automatically request API endpoints extracted from JavaScript; API candidates should be added to inventory only.
+* Must not save cookies, tokens, secrets, personal data, payment data, or full sensitive response bodies.
 
 ---
 
@@ -859,6 +907,32 @@ Must not execute JavaScript.
 Must not evaluate JavaScript.
 
 Must not send requests.
+
+### `html_link_extractor.py`
+
+Purpose:
+
+* Extract same-page HTML links and script `src` references from HTML text.
+* Return URL candidates for normalization and same-scope filtering.
+* Support bounded crawler inventory building.
+
+Must not execute JavaScript.
+
+Must not submit forms.
+
+Must not send requests.
+
+### `crawl_queue.py`
+
+Purpose:
+
+* Manage bounded crawl queue state.
+* Enforce `max_pages`, `max_depth`, `max_requests`, and same-scope constraints.
+* Prevent duplicate crawl targets.
+
+Must not send requests by itself.
+
+Must not bypass scope or risk approval.
 
 ---
 
@@ -909,6 +983,7 @@ v0.4 candidate workflows:
 safe_robots_securitytxt_workflow.py
 safe_sitemap_parser_workflow.py
 safe_js_endpoint_extraction_workflow.py
+safe_bounded_crawl_workflow.py
 ```
 
 Workflow responsibilities:
@@ -983,6 +1058,8 @@ v0.4 candidate tools:
 url_normalizer.py
 endpoint_inventory.py
 js_endpoint_extractor.py
+html_link_extractor.py
+crawl_queue.py
 ```
 
 Rules:
@@ -1307,6 +1384,7 @@ Examples:
 future exposed file observation
 future open redirect observation
 future GraphQL observation
+future safe bounded in-scope crawl workflow
 ```
 
 ### High
@@ -1390,7 +1468,19 @@ config/tool_risk_profiles.json
 server.py wrapper only after tests pass
 ```
 
-### Step 5: Inventory summary
+### Step 5: Bounded in-scope crawl workflow
+
+```text
+tools/html_link_extractor.py
+tools/crawl_queue.py
+workflows/safe_bounded_crawl_workflow.py
+config/tool_risk_profiles.json
+server.py wrapper only after tests pass
+```
+
+The bounded crawler should be classified as `medium` risk and require `risk_gate` plus explicit approval.
+
+### Step 6: Inventory summary
 
 ```text
 tool_summarize_endpoint_inventory
@@ -1411,15 +1501,16 @@ v0.4 is complete when:
 4. Public metadata endpoints can be observed safely.
 5. Sitemap URLs can be parsed with size and count limits.
 6. JavaScript endpoint candidates can be extracted without executing JavaScript.
-7. Inventory items are saved without sensitive data.
-8. Inventory summary can group endpoints by target, source, endpoint type, and priority.
-9. New exposed MCP tools have risk profiles.
-10. New workflows check scope first.
-11. New workflows return safety metadata.
-12. Tests pass.
-13. Existing `tests/test_risk_gate.py` and `tests/test_skill_loader.py` still pass.
-14. No exploit automation is added.
-15. No brute force, DoS, mass fuzzing, credential testing, or destructive action is added.
+7. Bounded crawler can collect same-scope HTML links without unrestricted crawling.
+8. Inventory items are saved without sensitive data.
+9. Inventory summary can group endpoints by target, source, endpoint type, and priority.
+10. New exposed MCP tools have risk profiles.
+11. New workflows check scope first.
+12. New workflows return safety metadata.
+13. Tests pass.
+14. Existing `tests/test_risk_gate.py` and `tests/test_skill_loader.py` still pass.
+15. No exploit automation is added.
+16. No brute force, DoS, mass fuzzing, credential testing, unrestricted crawling, or destructive action is added.
 
 ---
 
@@ -1486,6 +1577,8 @@ Important assertions:
 * URL normalizer should reject unsupported schemes.
 * Endpoint inventory should de-duplicate normalized URLs.
 * JS extractor should not execute JavaScript.
+* Bounded crawler should enforce max pages, max depth, max requests, rate delay, allowed methods, allowed content types, and same-scope links.
+* Bounded crawler should not submit forms or use cookies, tokens, credentials, POST, PUT, PATCH, or DELETE.
 * Existing workflow behavior should not change when adding inventory tools.
 
 ---
@@ -1520,5 +1613,6 @@ Add endpoint inventory foundation
 Add safe robots securitytxt workflow
 Add safe sitemap parser workflow
 Add safe JS endpoint extraction workflow
+Add safe bounded crawl workflow
 Document attack surface inventory architecture
 ```

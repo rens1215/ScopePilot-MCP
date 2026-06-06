@@ -129,11 +129,61 @@ Evidence 應偏向 metadata，例如 status code、content type、body size、he
 
 ## 後續使用方式
 
-後續 v0.4 robots/security.txt/sitemap/JS extraction workflow 會使用這些 foundation 工具：
+後續 v0.4 robots/security.txt/sitemap/JS extraction/bounded crawler workflow 會使用這些 foundation 工具：
 
 - Public metadata workflow 可將 robots/security.txt/sitemap references 正規化後放入 inventory。
 - Sitemap workflow 可將 sitemap URLs 正規化、去重並建立 inventory items。
 - JS extraction workflow 可從 JavaScript 文字中提取 candidate routes，但仍不得執行 JavaScript。
+- Bounded crawler workflow 可收集同 scope HTML links、script `src`、sitemap links 與 same-scope frontend routes，用於建立 endpoint inventory。
+
+Crawler 的目的只是建立 endpoint inventory，不是漏洞驗證。
+
+## Bounded In-Scope Crawling
+
+v0.4 允許未來加入 bounded in-scope crawling，但禁止 unrestricted crawling 與 unlimited recursive crawling。
+
+建議未來 workflow：
+
+```text
+workflows/safe_bounded_crawl_workflow.py
+```
+
+建議未來 tools：
+
+```text
+tools/html_link_extractor.py
+tools/crawl_queue.py
+```
+
+`safe_bounded_crawl_workflow` 建議 `risk_level=medium`，必須先通過 `risk_gate` 與 explicit approval。
+
+Bounded crawler 必須遵守：
+
+- 只允許 in-scope domain / subdomain。
+- 只允許 `GET` / `HEAD`。
+- 不允許 `POST` / `PUT` / `PATCH` / `DELETE`。
+- 不提交 form。
+- 不使用 cookie / token / credential。
+- 不 exploit。
+- 不 fuzz。
+- 不 brute force。
+- 不做 state-changing action。
+- 限制 `max_pages`。
+- 限制 `max_depth`。
+- 限制 `max_requests`。
+- 限制 `rate_delay_seconds`。
+- 只處理允許的 content-type，例如 HTML 與安全的 text metadata。
+- 只追蹤 same-scope link。
+- 不保存 cookie、token、secret、personal data、payment data 或完整敏感 response body。
+
+Crawler 可以收集：
+
+- HTML links。
+- Script `src`。
+- Sitemap links。
+- Same-scope frontend routes。
+
+Crawler 不會自動請求 JS 中萃取出的 API endpoint。API candidates 只應加入 inventory，等待後續 risk gate、approval 與 controlled validation。
 
 這些後續 workflow 必須各自遵守 scope guard、risk gate、request limit、safety metadata、敏感資料保護與 approval 規則。
 
@@ -149,6 +199,8 @@ Attack surface inventory 不得進行：
 - DoS 或 stress testing。
 - Destructive action。
 - Unrestricted exploit chaining。
+- Unrestricted crawling。
+- Unlimited recursive crawling。
 - Real data exfiltration。
 
 若後續 validation 需要 medium/high risk action，必須通過 `risk_gate` 與 explicit approval。若 target 不在 scope 內，必須停止。
