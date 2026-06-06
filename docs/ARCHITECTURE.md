@@ -8,9 +8,9 @@ MCP_SERVER_FOR_LLM_HACKER
 
 ## System Goal
 
-This project is an AI-assisted authorized web penetration testing platform built around MCP tools.
+This project is an AI-assisted authorized web security testing platform built around MCP tools.
 
-The system is designed to help an AI agent perform scoped reconnaissance, controlled validation, evidence collection, finding prioritization, finding summarization, and reproducible report generation.
+The system helps an AI agent perform scoped reconnaissance, attack surface inventory, evidence organization, finding prioritization, finding summarization, and reproducible report preparation.
 
 The system must operate only on explicitly authorized in-scope targets.
 
@@ -87,132 +87,109 @@ tool_write_report_draft
 
 ---
 
-## Completed Architecture Target
+## Next Architecture Target
 
-Completed milestone:
+Next milestone:
 
 ```text
-v0.4-attack-surface-inventory
+v0.5-core-refactor-and-result-standardization
 ```
 
-The purpose of v0.4 is to build an attack surface inventory layer.
+The purpose of v0.5 is to refactor and integrate the existing v0.1–v0.4 features before adding controlled validation.
 
-This layer helps the future AI agent understand:
+v0.5 should make the project easier to maintain, easier to test, easier for Codex to modify, and easier for the runtime AI agent to use safely.
 
-* What public entry points exist.
-* Which endpoints are more valuable.
-* Which endpoints are likely frontend pages, APIs, auth pages, static assets, admin surfaces, or documentation.
-* Which endpoints should be prioritized for later controlled validation.
-* Which endpoints are likely low-value and should not waste request budget.
-* Which same-scope links can be added to inventory through bounded crawling.
+v0.5 is not a new vulnerability-testing phase.
 
-v0.4 does not perform exploitation.
+v0.5 must not add exploit automation, controlled validation, fuzzing, brute force, credential testing, form submission, state-changing actions, or destructive behavior.
 
-v0.4 does not perform fuzzing, brute force, credential testing, destructive validation, or state-changing validation.
-
-v0.4 builds a safe target map for later versions.
-
-v0.4 may support bounded in-scope crawling for inventory building only. It must not perform unrestricted crawling or unlimited recursive crawling.
-
-v0.4 inventory observations are not vulnerability proof. They identify entry points, classify endpoint candidates, and prepare later controlled validation.
-
-v0.4 safety boundaries:
-
-* No exploit automation.
-* No fuzzing.
-* No brute force.
-* No credential testing.
-* No form submission.
-* No state-changing actions.
-* No sensitive data storage.
-* Bounded crawler requires `risk_gate` and explicit approval because it is medium risk.
-
-v0.4 request budgets:
-
-* `safe_robots_securitytxt_workflow`: maximum 3 requests.
-* `safe_sitemap_parser_workflow`: maximum 1 request.
-* `safe_js_endpoint_extraction_workflow`: medium risk, maximum 31 requests.
-* `safe_bounded_crawl_workflow`: medium risk, maximum 30 requests.
-
----
-
-## Why v0.4 Exists
-
-Without an attack surface inventory, the AI agent may test blindly.
-
-Blind testing causes:
-
-* Low signal-to-noise ratio.
-* More false positives.
-* Wasted request budget.
-* Poor prioritization.
-* Unstable tool selection.
-* Weak exploit-chain reasoning.
-
-Attack surface inventory gives the AI agent a structured map before deeper validation.
-
-The goal is not to prove vulnerabilities yet.
-
-The goal is to identify high-value areas such as:
-
-* Login pages
-* Account pages
-* User profile endpoints
-* API endpoints
-* Upload endpoints
-* OAuth / callback endpoints
-* Admin-looking paths
-* GraphQL endpoints
-* Public documentation
-* JavaScript-discovered routes
-* Sitemap-discovered routes
-* Robots/security.txt/sitemap metadata
-* Same-scope HTML links from bounded crawls
-
----
-
-## v0.4 Scope
-
-v0.4 should add safe inventory capabilities only.
-
-Completed v0.4 modules:
+The original controlled-validation milestone is moved to:
 
 ```text
-workflows/safe_robots_securitytxt_workflow.py
-workflows/safe_sitemap_parser_workflow.py
-workflows/safe_js_endpoint_extraction_workflow.py
-workflows/safe_bounded_crawl_workflow.py
-tools/endpoint_inventory.py
-tools/url_normalizer.py
-tools/js_endpoint_extractor.py
-tools/html_link_extractor.py
-tools/crawl_queue.py
-validators/inventory_validator.py
-tests/test_attack_surface_inventory.py
-tests/test_robots_securitytxt_workflow.py
-tests/test_sitemap_parser_workflow.py
-tests/test_js_endpoint_extraction_workflow.py
-tests/test_bounded_crawl_foundation.py
-tests/test_bounded_crawl_workflow.py
-docs/ATTACK_SURFACE_INVENTORY.md
-```
-
-Completed implementation steps:
-
-```text
-Step 1: URL normalization and inventory data model
-Step 2: robots.txt / security.txt / sitemap observation workflow
-Step 3: sitemap parser
-Step 4: safe JS endpoint extraction
-Step 5: safe bounded in-scope crawler
-Step 6: documentation and tests
+v0.6-controlled-validation
 ```
 
 ---
 
-## v0.4 Non-Goals
+## Why v0.5 Exists
 
-Do not implement these in v0.4:
+The project now contains multiple layers:
+
+* MCP wrappers
+* Scope guard
+* Risk gate
+* Approval controller
+* Safe workflows
+* Inventory workflows
+* Runtime skills
+* Validators
+* Storage
+* Reporting
+* Tests
+* Documentation
+
+If controlled validation is added before refactoring, the project will become harder to audit and maintain.
+
+v0.5 exists to solve these problems:
+
+* `server.py` is becoming too large.
+* Workflow result shapes are not fully standardized.
+* Safety metadata is duplicated across workflows.
+* HTTP error handling is duplicated across workflows.
+* Inventory candidate creation is duplicated across workflows.
+* Tests are growing and need clearer organization.
+* Future v0.6 validation workflows need stable shared primitives.
+
+v0.5 should improve internal structure without changing the safety model.
+
+---
+
+## v0.5 Scope
+
+v0.5 should focus on refactoring and integration only.
+
+Recommended v0.5 modules:
+
+```text
+mcp_tools/
+mcp_tools/__init__.py
+mcp_tools/scope_tools.py
+mcp_tools/risk_tools.py
+mcp_tools/workflow_tools.py
+mcp_tools/report_tools.py
+
+tools/safety_metadata.py
+tools/http_result_utils.py
+tools/inventory_candidate_builder.py
+tools/result_schema.py
+
+tests/test_safety_metadata.py
+tests/test_http_result_utils.py
+tests/test_inventory_candidate_builder.py
+tests/test_result_schema.py
+
+docs/REFACTORING_PLAN.md
+docs/RESULT_SCHEMA.md
+```
+
+Not every file must be implemented at once. v0.5 should be built in small, reviewable steps.
+
+Recommended implementation order:
+
+```text
+Step 1: Define shared result and safety metadata helpers
+Step 2: Extract shared HTTP result handling helpers
+Step 3: Extract inventory candidate builder
+Step 4: Refactor workflows to use shared helpers one group at a time
+Step 5: Split MCP wrappers out of server.py
+Step 6: Update tests and docs
+```
+
+---
+
+## v0.5 Non-Goals
+
+Do not implement these in v0.5:
 
 ```text
 exploit automation
@@ -230,52 +207,145 @@ destructive action
 real data exfiltration
 automatic account testing
 automatic vulnerability reporting
+controlled open redirect validation
+controlled exposed file validation
+controlled GraphQL validation
+controlled authz validation
+controlled IDOR validation
 ```
 
-These belong to later controlled-validation phases, and only after risk gate, explicit approval, request limits, and evidence rules are in place.
+These belong to future v0.6 or later controlled-validation phases.
+
+---
+
+## v0.5 Safety Rules
+
+v0.5 must preserve all existing safety boundaries:
+
+* Do not weaken scope checks.
+* Do not bypass risk gate.
+* Do not bypass approval controller.
+* Do not increase request limits unless explicitly documented and tested.
+* Do not add new external-request behavior.
+* Do not add new MCP tools unless the refactor requires moving existing wrappers.
+* Do not change existing workflow behavior unless the change is required for standardization and tests prove compatibility.
+* Do not store sensitive data.
+* Do not save cookies, tokens, secrets, personal data, payment data, or full sensitive response bodies.
+* Do not add exploit payloads.
+* Do not add brute-force logic.
+* Do not add credential attack logic.
+* Do not add destructive or state-changing behavior.
+
+---
+
+## Current v0.4 Architecture Summary
+
+v0.4 completed attack surface inventory.
+
+Attack surface inventory answers:
+
+```text
+What endpoints exist?
+Where did each endpoint come from?
+What type of endpoint is it?
+How valuable is it for later validation?
+What skill might be relevant next?
+What safety constraints apply?
+```
+
+v0.4 workflows:
+
+```text
+safe_robots_securitytxt_workflow.py
+safe_sitemap_parser_workflow.py
+safe_js_endpoint_extraction_workflow.py
+safe_bounded_crawl_workflow.py
+```
+
+v0.4 tools:
+
+```text
+url_normalizer.py
+endpoint_inventory.py
+js_endpoint_extractor.py
+html_link_extractor.py
+crawl_queue.py
+```
+
+v0.4 validator:
+
+```text
+inventory_validator.py
+```
+
+v0.4 request budgets:
+
+```text
+safe_robots_securitytxt_workflow: max 3 requests
+safe_sitemap_parser_workflow: max 1 request
+safe_js_endpoint_extraction_workflow: max 31 requests
+safe_bounded_crawl_workflow: max 30 requests
+```
+
+v0.4 remains inventory-only. It does not prove vulnerability impact.
+
+---
+
+## Desired v0.5 Architecture
+
+### Before v0.5
+
+```text
+server.py
+    contains many MCP wrappers
+
+workflows/
+    each workflow has its own safety metadata logic
+    each workflow has its own HTTP error handling
+    each workflow has its own inventory candidate building logic
+
+tools/
+    contains useful utilities but shared workflow helpers are still duplicated
+```
+
+### After v0.5
+
+```text
+server.py
+    starts MCP server
+    imports/registers grouped MCP tools
+    contains minimal direct wrapper logic
+
+mcp_tools/
+    contains MCP wrapper groups
+
+tools/safety_metadata.py
+    standardizes safety metadata
+
+tools/http_result_utils.py
+    standardizes HTTP helper result handling
+
+tools/inventory_candidate_builder.py
+    standardizes inventory candidate construction and validation
+
+tools/result_schema.py
+    standardizes workflow result shape
+
+workflows/
+    use shared helpers
+    remain behaviorally compatible
+```
 
 ---
 
 ## High-Level Execution Flow
 
-Long-term intended flow:
-
-```text
-User Request
-    ↓
-Agent Planner
-    ↓
-Runtime Skill Loader
-    ↓
-Risk Gate
-    ↓
-Approval Controller
-    ↓
-MCP Tool Wrapper
-    ↓
-Workflow
-    ↓
-Low-level Tool
-    ↓
-Validator
-    ↓
-Finding Storage
-    ↓
-Endpoint Inventory
-    ↓
-Finding Summarizer
-    ↓
-Report Writer
-```
-
-Current v0.4 flow:
+Current intended runtime flow:
 
 ```text
 User Request
     ↓
 MCP Tool Wrapper
-    ↓
-Runtime Skill Loader
     ↓
 Risk Gate / Approval Controller
     ↓
@@ -287,20 +357,29 @@ Low-level Tool
     ↓
 Validator
     ↓
-Storage
+Finding / Inventory Storage
     ↓
 Summary / Report
 ```
 
-v0.4 adds:
+v0.5 should not change this behavior.
+
+v0.5 should only make the implementation cleaner:
 
 ```text
-Attack Surface Inventory
-Endpoint Inventory Builder
-Safe robots/security.txt/sitemap observation
-Safe JS endpoint extraction
-Safe bounded in-scope crawling
-Endpoint prioritization
+User Request
+    ↓
+server.py
+    ↓
+mcp_tools/*
+    ↓
+Workflow
+    ↓
+Shared Helpers
+    ↓
+Low-level Tool / Validator
+    ↓
+Standardized Result
 ```
 
 ---
@@ -310,6 +389,7 @@ Endpoint prioritization
 ```text
 MCP Layer
     server.py
+    mcp_tools/
 
 Agent Layer
     risk_gate
@@ -328,6 +408,12 @@ Workflow Layer
     safe_js_endpoint_extraction_workflow
     safe_bounded_crawl_workflow
 
+Shared Helper Layer
+    safety_metadata
+    http_result_utils
+    inventory_candidate_builder
+    result_schema
+
 Tool Layer
     scope_guard
     http_probe
@@ -339,8 +425,8 @@ Tool Layer
     logger
     policy_loader
     skill_loader
-    endpoint_inventory
     url_normalizer
+    endpoint_inventory
     js_endpoint_extractor
     html_link_extractor
     crawl_queue
@@ -389,6 +475,13 @@ MCP_SERVER_FOR_LLM_HACKER/
 │   ├── execution_state.py          # future
 │   └── task_router.py              # future
 │
+├── mcp_tools/
+│   ├── __init__.py                 # v0.5
+│   ├── scope_tools.py              # v0.5
+│   ├── risk_tools.py               # v0.5
+│   ├── workflow_tools.py           # v0.5
+│   └── report_tools.py             # v0.5
+│
 ├── config/
 │   ├── scope.json
 │   ├── scan_policy.json
@@ -404,43 +497,18 @@ MCP_SERVER_FOR_LLM_HACKER/
 │
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── ATTACK_SURFACE_INVENTORY.md
 │   ├── FINDING_SCHEMA.md
+│   ├── RESULT_SCHEMA.md            # v0.5
+│   ├── REFACTORING_PLAN.md         # v0.5
 │   ├── ROADMAP.md
 │   ├── TEST_PLAN.md
 │   ├── TOOL_RISK_MODEL.md
-│   ├── RUNTIME_SKILLS.md
-│   └── ATTACK_SURFACE_INVENTORY.md
+│   └── RUNTIME_SKILLS.md
 │
 ├── skills/
 │   ├── agent_runtime/
-│   │   ├── passive_recon/
-│   │   │   └── SKILL.md
-│   │   ├── security_headers/
-│   │   │   └── SKILL.md
-│   │   ├── cors/
-│   │   │   └── SKILL.md
-│   │   ├── reporting/
-│   │   │   └── SKILL.md
-│   │   ├── risk_gate/
-│   │   │   └── SKILL.md
-│   │   ├── auth_access_control/     # future
-│   │   │   └── SKILL.md
-│   │   ├── idor/                    # future
-│   │   │   └── SKILL.md
-│   │   ├── open_redirect/           # future
-│   │   │   └── SKILL.md
-│   │   ├── exposed_files/           # future
-│   │   │   └── SKILL.md
-│   │   └── graphql/                 # future
-│   │       └── SKILL.md
-│   │
 │   └── codex_dev/
-│       ├── project_maintenance/
-│       │   └── SKILL.md
-│       ├── workflow_development/
-│       │   └── SKILL.md
-│       └── testing/
-│           └── SKILL.md
 │
 ├── tools/
 │   ├── __init__.py
@@ -454,15 +522,21 @@ MCP_SERVER_FOR_LLM_HACKER/
 │   ├── logger.py
 │   ├── policy_loader.py
 │   ├── skill_loader.py
-│   ├── endpoint_inventory.py        # v0.4
-│   ├── url_normalizer.py            # v0.4
-│   └── js_endpoint_extractor.py     # v0.4
+│   ├── url_normalizer.py
+│   ├── endpoint_inventory.py
+│   ├── js_endpoint_extractor.py
+│   ├── html_link_extractor.py
+│   ├── crawl_queue.py
+│   ├── safety_metadata.py          # v0.5
+│   ├── http_result_utils.py        # v0.5
+│   ├── inventory_candidate_builder.py # v0.5
+│   └── result_schema.py            # v0.5
 │
 ├── validators/
 │   ├── __init__.py
 │   ├── header_validator.py
 │   ├── cors_validator.py
-│   ├── inventory_validator.py       # v0.4
+│   ├── inventory_validator.py
 │   ├── exposed_file_validator.py    # future
 │   ├── open_redirect_validator.py   # future
 │   └── authz_validator.py           # future
@@ -473,19 +547,24 @@ MCP_SERVER_FOR_LLM_HACKER/
 │   ├── safe_security_headers_workflow.py
 │   ├── safe_cors_observation_workflow.py
 │   ├── safe_passive_recon_workflow.py
-│   ├── safe_robots_securitytxt_workflow.py      # v0.4
-│   ├── safe_sitemap_parser_workflow.py          # v0.4
-│   └── safe_js_endpoint_extraction_workflow.py  # v0.4
+│   ├── safe_robots_securitytxt_workflow.py
+│   ├── safe_sitemap_parser_workflow.py
+│   ├── safe_js_endpoint_extraction_workflow.py
+│   └── safe_bounded_crawl_workflow.py
 │
 ├── tests/
 │   ├── test_risk_gate.py
 │   ├── test_skill_loader.py
-│   ├── test_attack_surface_inventory.py   # v0.4
-│   ├── test_url_normalizer.py             # v0.4
-│   ├── test_js_endpoint_extractor.py      # v0.4
-│   ├── test_scope_guard.py                # future
-│   ├── test_workflows.py                  # future
-│   └── test_finding_summarizer.py         # future
+│   ├── test_attack_surface_inventory.py
+│   ├── test_robots_securitytxt_workflow.py
+│   ├── test_sitemap_parser_workflow.py
+│   ├── test_js_endpoint_extraction_workflow.py
+│   ├── test_bounded_crawl_foundation.py
+│   ├── test_bounded_crawl_workflow.py
+│   ├── test_safety_metadata.py      # v0.5
+│   ├── test_http_result_utils.py    # v0.5
+│   ├── test_inventory_candidate_builder.py # v0.5
+│   └── test_result_schema.py        # v0.5
 │
 ├── server.py
 ├── requirements.txt
@@ -493,7 +572,7 @@ MCP_SERVER_FOR_LLM_HACKER/
 └── AGENTS.md
 ```
 
-Some files listed above are future targets and may not exist yet.
+Some files listed above are v0.5 targets and may not exist yet.
 
 ---
 
@@ -503,6 +582,7 @@ Location:
 
 ```text
 server.py
+mcp_tools/
 ```
 
 Purpose:
@@ -511,856 +591,293 @@ Purpose:
 * Expose controlled workflows to LM Studio.
 * Keep a stable interface between the local LLM and Python execution logic.
 
-Rules:
-
-* `server.py` should only contain MCP wrappers.
-* `server.py` should not contain workflow implementation details.
-* `server.py` should not send raw HTTP requests.
-* `server.py` should not make validator decisions.
-* New MCP tools should be added only when necessary.
-* Low-level tools should generally remain hidden from LM Studio.
-* Every exposed MCP tool must have a profile in `config/tool_risk_profiles.json`.
-
-Current exposed MCP tools:
+Current issue:
 
 ```text
-tool_check_scope
-tool_evaluate_action_risk
-tool_safe_http_probe_workflow
-tool_safe_security_headers_workflow
-tool_safe_cors_observation_workflow
-tool_safe_passive_recon_workflow
-tool_safe_robots_securitytxt_workflow
-tool_safe_sitemap_parser_workflow
-tool_safe_js_endpoint_extraction_workflow
-tool_safe_bounded_crawl_workflow
-tool_summarize_findings
-tool_write_report_draft
+server.py contains many wrapper functions and is becoming large.
 ```
 
-All exposed MCP tools must satisfy:
+v0.5 goal:
 
-* workflow is implemented
-* tests pass
-* risk profile exists
-* documentation is updated
-* LM Studio behavior is checked
+```text
+Move MCP wrapper groups into mcp_tools/.
+Keep server.py as a thin MCP startup and registration file.
+```
+
+Recommended grouping:
+
+```text
+mcp_tools/scope_tools.py
+    tool_check_scope
+
+mcp_tools/risk_tools.py
+    tool_evaluate_action_risk
+
+mcp_tools/workflow_tools.py
+    tool_safe_http_probe_workflow
+    tool_safe_security_headers_workflow
+    tool_safe_cors_observation_workflow
+    tool_safe_passive_recon_workflow
+    tool_safe_robots_securitytxt_workflow
+    tool_safe_sitemap_parser_workflow
+    tool_safe_js_endpoint_extraction_workflow
+    tool_safe_bounded_crawl_workflow
+
+mcp_tools/report_tools.py
+    tool_summarize_findings
+    tool_write_report_draft
+```
+
+Rules:
+
+* `server.py` should not send HTTP requests.
+* `server.py` should not implement workflow logic.
+* `mcp_tools/*` should remain thin wrappers.
+* `mcp_tools/*` should not bypass scope guard.
+* `mcp_tools/*` should not bypass risk gate.
+* Existing tool names must remain stable.
+* Existing LM Studio behavior should remain compatible.
 
 ---
 
-## Agent Layer
+## Standard Workflow Result Schema
+
+v0.5 should define a standard workflow result shape.
 
 Location:
 
 ```text
-agent/
+tools/result_schema.py
+docs/RESULT_SCHEMA.md
 ```
 
-Purpose:
-
-The Agent Layer controls whether and how an action should be executed.
-
-Current modules:
-
-```text
-risk_gate.py
-approval_controller.py
-```
-
-Future modules:
-
-```text
-planner.py
-execution_state.py
-task_router.py
-```
-
-### `risk_gate.py`
-
-Current responsibility:
-
-* Evaluate tool risk.
-* Check if a tool is allowed in the current execution mode.
-* Require approval for low, medium, and high risk actions.
-* Deny unknown or blocked tools by default.
-* Fail closed when tool risk profile is missing or malformed.
-
-Rules:
-
-* Must not execute tools.
-* Must not call workflows.
-* Must not send HTTP requests.
-* Must not modify target state.
-* Must not bypass scope guard.
-
-### `approval_controller.py`
-
-Current responsibility:
-
-* Build approval request objects.
-* Explain estimated requests, risk level, state-change risk, credential usage, and allowed modes.
-* Prepare data that the UI or LLM can show before execution.
-
-Rules:
-
-* Must not execute tools.
-* Must not call workflows.
-* Must not send HTTP requests.
-* Must not decide new policy.
-* Allow/deny decision must come from `risk_gate.py`.
-
-### Future `planner.py`
-
-Future responsibility:
-
-* Convert user intent into an execution plan.
-* Select appropriate workflows.
-* Load runtime skills when needed.
-* Use endpoint inventory to prioritize later controlled validation.
-* Avoid directly executing tools.
-* Produce structured plans.
-
-Planner must not bypass:
-
-```text
-scope_guard
-risk_gate
-approval_controller
-tool_risk_profiles
-runtime skill rules
-```
-
----
-
-## Runtime Skill Layer
-
-Location:
-
-```text
-skills/agent_runtime/
-```
-
-Purpose:
-
-Runtime skills are local Markdown knowledge files for the future autonomous security testing AI agent.
-
-They define:
-
-* When to use a skill
-* Preconditions
-* Allowed actions
-* Disallowed actions
-* Evidence requirements
-* Validation rules
-* False-positive rules
-* Escalation rules
-* Output schemas
-
-Runtime skills are not executable code.
-
-Runtime skills must not contain:
-
-```text
-unrestricted payload lists
-brute-force instructions
-credential attack instructions
-destructive procedures
-real data exfiltration instructions
-unrestricted exploit chaining
-```
-
-Current runtime skill targets:
-
-```text
-passive_recon
-security_headers
-cors
-reporting
-risk_gate
-```
-
-Future runtime skill targets:
-
-```text
-auth_access_control
-idor
-open_redirect
-exposed_files
-graphql
-attack_surface_inventory
-```
-
----
-
-## Skill Loader
-
-Location:
-
-```text
-tools/skill_loader.py
-```
-
-Current responsibility:
-
-* Load local Markdown skill files from `skills/agent_runtime/<skill_name>/SKILL.md`.
-* Return skill content as text.
-* Return safe structured metadata.
-* Fail safely when the skill does not exist.
-* Reject path traversal attempts.
-* Reject absolute paths.
-* Reject unsafe skill names.
-
-The skill loader must not:
-
-```text
-execute SKILL.md content
-execute Python code
-call MCP tools
-call workflows
-send HTTP requests
-modify findings
-modify config
-modify logs
-modify target state
-```
-
----
-
-## Attack Surface Inventory Layer
-
-v0.4 introduces the Attack Surface Inventory Layer.
-
-Purpose:
-
-* Collect safe public entry-point metadata.
-* Normalize discovered URLs.
-* Classify endpoint types.
-* De-duplicate repeated endpoints.
-* Track discovery source.
-* Assign review priority.
-* Store non-sensitive endpoint metadata.
-* Provide later planner input.
-
-The inventory layer should answer:
-
-```text
-What endpoints exist?
-Where did each endpoint come from?
-What type of endpoint is it?
-How valuable is it for later validation?
-What skill might be relevant next?
-What safety constraints apply?
-```
-
-The inventory layer must not:
-
-```text
-exploit endpoints
-brute force paths
-perform unrestricted crawling
-perform unlimited recursive crawling
-perform mass fuzzing
-use credentials
-change target state
-save sensitive response bodies
-exfiltrate data
-```
-
----
-
-## Endpoint Inventory Data Model
-
-A stored inventory item should try to follow:
+Recommended base shape:
 
 ```json
 {
   "target": "",
-  "url": "",
-  "normalized_url": "",
-  "source": "robots | security_txt | sitemap | html_script_tag | javascript_static_analysis | manual",
-  "method_guess": "GET",
-  "endpoint_type": "frontend | api | auth_page | admin_candidate | static_asset | documentation | unknown",
-  "priority": "low | medium | high",
-  "confidence": "low | medium | high",
-  "discovered_by": "",
-  "evidence": {
-    "status_code": null,
-    "content_type": "",
-    "body_size": null,
-    "headers_summary": {}
-  },
+  "stopped": false,
+  "reason": "",
+  "scope": {},
+  "observations": [],
+  "inventory_candidates": [],
+  "findings": [],
+  "errors": [],
+  "warnings": [],
+  "summary": {},
   "safety": {
     "requests_sent": 0,
+    "scan_level": "safe | low-risk | medium-risk | high-risk | blocked",
     "fuzzing": false,
     "bruteforce": false,
     "exploitation": false,
     "crawling": false,
-    "credentialed_request": false
-  },
-  "recommended_next_skill": "",
-  "recommended_next_steps": [],
-  "notes": ""
-}
-```
-
-Inventory items should be saved without sensitive data.
-
----
-
-## v0.4 Safe Workflows
-
-### `safe_robots_securitytxt_workflow.py`
-
-Purpose:
-
-* Fetch public metadata files from an in-scope target.
-* Observe:
-
-  * `/robots.txt`
-  * `/.well-known/security.txt`
-  * `/sitemap.xml`
-
-Rules:
-
-* Must check scope first.
-* Must use low request limits.
-* Must not follow arbitrary links automatically.
-* Must not scan every path from robots.txt.
-* Must not treat disallowed paths as permission to scan.
-* Must save only non-sensitive metadata and discovered public references.
-
-### `safe_sitemap_parser_workflow.py`
-
-Purpose:
-
-* Parse sitemap XML from an in-scope target.
-* Extract URLs.
-* Normalize URLs.
-* Store public endpoint inventory items.
-
-Rules:
-
-* Must check scope first.
-* Must limit sitemap size.
-* Must limit URL count.
-* Must not recursively crawl unlimited sitemap indexes.
-* Must not request every discovered URL unless explicitly designed and approved.
-* Must only store endpoint metadata.
-
-### `safe_js_endpoint_extraction_workflow.py`
-
-Purpose:
-
-* Analyze directly referenced JavaScript files from an in-scope frontend page.
-* Extract likely endpoint strings and route patterns.
-* Add endpoint candidates to inventory.
-
-Recommended risk level:
-
-```text
-medium
-```
-
-This workflow is bounded static extraction for large frontend applications. It
-is not a crawler, not an exploit workflow, and not vulnerability validation.
-It may send multiple requests, so it requires `risk_gate` and explicit approval.
-
-Rules:
-
-* Must check scope first.
-* Must default to at most 20 JavaScript files.
-* Must enforce a hard cap of 30 JavaScript files.
-* Must enforce a hard cap of 31 total requests.
-* Must limit file size.
-* Must not execute JavaScript.
-* Must not evaluate JavaScript.
-* Must not request API endpoints extracted from JavaScript automatically.
-* Must only add API candidates to endpoint inventory.
-* Must not store secrets if accidentally found.
-* Must store only safe metadata, hashes, and endpoint candidates.
-
-### `safe_bounded_crawl_workflow.py`
-
-Purpose:
-
-* Build endpoint inventory from same-scope HTML links and frontend routes.
-* Collect HTML links, script `src`, sitemap links already observed, and same-scope frontend routes.
-* Use bounded in-scope crawling only for inventory discovery, not vulnerability validation.
-
-Recommended risk level:
-
-```text
-medium
-```
-
-Rules:
-
-* Must pass `risk_gate` and explicit approval before execution.
-* Must check scope before any request.
-* Must only follow in-scope domain or subdomain links.
-* Must only use `GET` or `HEAD`.
-* Must not use `POST`, `PUT`, `PATCH`, or `DELETE`.
-* Must not submit forms.
-* Must not use cookies, tokens, credentials, sessions, or authenticated requests.
-* Must not exploit, fuzz, brute force, or perform state-changing actions.
-* Must enforce `max_pages`.
-* Must enforce `max_depth`.
-* Must enforce `max_requests`.
-* Must enforce `rate_delay_seconds`.
-* Must only process allowed content types such as HTML and safe text metadata.
-* Must only track same-scope links.
-* Must not perform unrestricted crawling or unlimited recursive crawling.
-* Must not automatically request API endpoints extracted from JavaScript; API candidates should be added to inventory only.
-* Must not save cookies, tokens, secrets, personal data, payment data, or full sensitive response bodies.
-
----
-
-## v0.4 Tools
-
-### `url_normalizer.py`
-
-Purpose:
-
-* Normalize discovered URLs.
-* Remove fragments.
-* Normalize scheme/host casing.
-* Resolve relative paths safely.
-* Filter out unsupported schemes.
-* Help de-duplicate inventory items.
-
-Must not send requests.
-
-### `endpoint_inventory.py`
-
-Purpose:
-
-* Build inventory item objects.
-* De-duplicate by normalized URL and source.
-* Save inventory items to local data file.
-* Summarize inventory by target, source, endpoint type, and priority.
-
-Must not send requests.
-
-### `js_endpoint_extractor.py`
-
-Purpose:
-
-* Extract likely endpoint strings from JavaScript text.
-* Identify route-like strings, API-like paths, and URL-like tokens.
-* Return candidate endpoints.
-
-Must not execute JavaScript.
-
-Must not evaluate JavaScript.
-
-Must not send requests.
-
-### `html_link_extractor.py`
-
-Purpose:
-
-* Extract same-page HTML links and script `src` references from HTML text.
-* Return URL candidates for normalization and same-scope filtering.
-* Support bounded crawler inventory building.
-
-Must not execute JavaScript.
-
-Must not submit forms.
-
-Must not send requests.
-
-### `crawl_queue.py`
-
-Purpose:
-
-* Manage bounded crawl queue state.
-* Enforce `max_pages`, `max_depth`, `max_requests`, and same-scope constraints.
-* Prevent duplicate crawl targets.
-
-Must not send requests by itself.
-
-Must not bypass scope or risk approval.
-
----
-
-## v0.4 Validators
-
-### `inventory_validator.py`
-
-Purpose:
-
-* Validate endpoint inventory item shape.
-* Classify endpoint type conservatively.
-* Reduce noisy candidates.
-* Assign priority and confidence.
-* Recommend next skill.
-
-Must not send requests.
-
-Must not execute payloads.
-
-Must not claim vulnerability impact.
-
----
-
-## Workflow Layer
-
-Location:
-
-```text
-workflows/
-```
-
-Purpose:
-
-Workflows are controlled multi-step procedures.
-
-Current workflows:
-
-```text
-safe_http_probe_workflow.py
-safe_security_headers_workflow.py
-safe_cors_observation_workflow.py
-safe_passive_recon_workflow.py
-safe_robots_securitytxt_workflow.py
-safe_sitemap_parser_workflow.py
-safe_js_endpoint_extraction_workflow.py
-safe_bounded_crawl_workflow.py
-```
-
-Workflow responsibilities:
-
-* Check scope.
-* Stop if out of scope.
-* Check risk profile where applicable.
-* Call low-level tools.
-* Call validators.
-* Save findings or inventory.
-* Return safety metadata.
-* Log key events.
-
-Every external workflow must return:
-
-```json
-{
-  "safety": {
-    "requests_sent": 0,
-    "scan_level": "low-risk",
-    "fuzzing": false,
-    "bruteforce": false,
-    "exploitation": false,
-    "crawling": false,
-    "credentialed_request": false
+    "credentialed_request": false,
+    "state_changing": false
   }
 }
 ```
 
-Workflow rules:
+Rules:
 
-* No workflow may skip scope checking.
-* No workflow may store sensitive data.
-* No workflow may perform unrestricted exploit chaining.
-* No workflow may perform brute force, DoS, credential stuffing, or mass fuzzing.
-* Workflows should be deterministic and testable.
-* Medium/high risk validation must go through `risk_gate` and explicit approval.
+* Existing workflows do not need to become identical in one step.
+* Refactor gradually.
+* Preserve existing keys where LM Studio currently relies on them.
+* Standardization must not break tests.
+* New helper functions should make future workflow output more consistent.
+
+Possible helper functions:
+
+```text
+build_workflow_result(...)
+build_blocked_result(...)
+append_observation(...)
+append_error(...)
+```
 
 ---
 
-## Tool Layer
+## Standard Safety Metadata
 
-Location:
+v0.5 should extract repeated safety metadata creation into:
 
 ```text
-tools/
+tools/safety_metadata.py
 ```
 
-Purpose:
-
-Tools are reusable low-level utilities.
-
-Current tools:
+Recommended helper:
 
 ```text
-scope_guard.py
-http_probe.py
-security_headers.py
-endpoint_classifier.py
-priority_scorer.py
-finding_summarizer.py
-storage.py
-logger.py
-report_writer.py
-policy_loader.py
-skill_loader.py
-url_normalizer.py
-endpoint_inventory.py
-js_endpoint_extractor.py
-html_link_extractor.py
-crawl_queue.py
+build_safety_metadata(
+    requests_sent=0,
+    scan_level="low-risk",
+    fuzzing=False,
+    bruteforce=False,
+    exploitation=False,
+    crawling=False,
+    credentialed_request=False,
+    state_changing=False
+)
 ```
 
 Rules:
 
-* Tools should be single-purpose.
-* Tools should not contain business workflow logic.
-* External-request tools should be called from workflows.
-* Tools should return structured dictionaries.
-* Tools should avoid storing sensitive content.
-* Tools that only parse local text must not send requests.
-* Tools that parse JavaScript must not execute JavaScript.
+* Must default to safe values.
+* Must not hide risky behavior.
+* Must support existing safety fields.
+* Must not change existing workflow behavior unless tests are updated intentionally.
+* Must include `state_changing=false` for future compatibility.
 
 ---
 
-## Validator Layer
+## Standard HTTP Result Handling
 
-Location:
-
-```text
-validators/
-```
-
-Purpose:
-
-Validators classify raw observations and reduce false positives.
-
-Current validators:
+v0.5 should extract repeated HTTP helper handling into:
 
 ```text
-header_validator.py
-cors_validator.py
-inventory_validator.py
+tools/http_result_utils.py
 ```
 
-Future validators:
+Current repeated patterns:
+
+* `http_probe` is unavailable.
+* `http_probe` raises exception.
+* `http_probe` returns non-dict.
+* Result is blocked.
+* Result has error.
+* Content-Type extraction.
+* Safe header summary.
+* Body text extraction.
+
+Recommended helpers:
 
 ```text
-exposed_file_validator.py
-open_redirect_validator.py
-authz_validator.py
-idor_validator.py
-```
-
-Validators must return:
-
-```python
-{
-    "status": "observation | candidate_finding | confirmed_finding | needs_manual_validation",
-    "severity": "info | low | medium | high | critical",
-    "confidence": "low | medium | high",
-    "should_report": false,
-    "reason": "...",
-    "false_positive_notes": []
-}
-```
-
-Validator rules:
-
-* Validators must not send network requests.
-* Validators must not save findings.
-* Validators must not perform exploitation.
-* Validators must not claim confirmed impact without evidence.
-* Validators should be conservative.
-
----
-
-## Config Layer
-
-Location:
-
-```text
-config/
-```
-
-Purpose:
-
-Configuration controls scope, policy, false positive behavior, and tool risk.
-
-Important files:
-
-```text
-scope.json
-scan_policy.json
-false_positive_rules.json
-tool_risk_profiles.json
-```
-
-Any new exposed MCP tool must have a profile in:
-
-```text
-config/tool_risk_profiles.json
-```
-
-Unknown tools must be denied by default.
-
-v0.4 exposed tools have risk profiles in `config/tool_risk_profiles.json`.
-
----
-
-## Data Layer
-
-Location:
-
-```text
-data/
-```
-
-Runtime data:
-
-```text
-findings.jsonl
-evidence.jsonl
-endpoint_inventory.jsonl
-mcp.log
+safe_http_probe_call(url: str) -> tuple[dict, bool]
+get_content_type(probe: dict) -> str
+headers_summary(headers: dict | None) -> dict
+probe_body_text(probe: dict) -> str
+base_http_observation(...)
+is_allowed_content_type(...)
 ```
 
 Rules:
 
-* Runtime data must not be committed.
-* Only `data/.gitkeep` should be committed.
-* Findings and inventory should not include secrets, cookies, tokens, personal data, payment data, or sensitive response bodies.
-* Evidence should favor metadata, hashes, body size, status code, headers summary, normalized URLs, and discovery source.
+* Must not send requests except through the existing `http_probe` helper.
+* Must not save sensitive headers.
+* Must not save cookies, authorization headers, tokens, secrets, personal data, or full sensitive response bodies.
+* Must convert exceptions and malformed results into structured request_error observations.
+* Must preserve current workflow behavior.
 
 ---
 
-## Report Layer
+## Standard Inventory Candidate Builder
 
-Current location:
-
-```text
-tools/report_writer.py
-```
-
-Future location:
+v0.5 should extract repeated inventory candidate construction into:
 
 ```text
-report/
+tools/inventory_candidate_builder.py
 ```
 
-Purpose:
+Current repeated logic:
 
-* Generate reproducible report drafts.
-* Convert validated findings into structured reports.
-* Include evidence summary.
-* Include reproduction steps.
-* Include remediation.
-* Include false-positive notes.
-* Avoid storing sensitive data.
+* Build inventory item.
+* Add safe evidence metadata.
+* Run `validate_inventory_item`.
+* Copy endpoint_type, priority, confidence, recommended_next_skill.
+* Add validator_result.
+* Avoid sensitive data.
 
-Future files:
+Recommended helper:
 
 ```text
-report/report_writer.py
-report/report_schema.py
-report/templates/
+build_validated_inventory_candidate(
+    target: str,
+    raw_url: str,
+    normalized_url: str,
+    source: str,
+    discovered_by: str,
+    evidence: dict,
+    notes: str = ""
+) -> dict
 ```
+
+Rules:
+
+* Must not send requests.
+* Must not validate vulnerabilities.
+* Must not claim impact.
+* Must sanitize evidence.
+* Must not store sensitive data.
+* Must preserve current candidate fields.
 
 ---
 
-## Finding Lifecycle
+## Workflow Refactor Plan
 
-A finding should move through these states:
+Refactor workflows gradually.
+
+Recommended order:
 
 ```text
-observation
-    ↓
-candidate_finding
-    ↓
-needs_manual_validation
-    ↓
-confirmed_finding
-    ↓
-report_draft
+Step 1: Add shared helper modules and tests.
+Step 2: Refactor one simple workflow first, such as safe_sitemap_parser_workflow.
+Step 3: Refactor safe_robots_securitytxt_workflow.
+Step 4: Refactor safe_js_endpoint_extraction_workflow.
+Step 5: Refactor safe_bounded_crawl_workflow.
+Step 6: Refactor older workflows only if needed:
+        safe_http_probe_workflow
+        safe_security_headers_workflow
+        safe_cors_observation_workflow
+        safe_passive_recon_workflow
 ```
 
-Definitions:
+Rules:
 
-### Observation
-
-A raw or lightly interpreted result.
-
-Example:
-
-* HTTP 200 response
-* Missing security headers
-* No CORS headers
-* Frontend endpoint classification
-* Public endpoint discovered from sitemap
-
-### Candidate Finding
-
-Potential issue requiring manual validation.
-
-Example:
-
-* Missing CSP and X-Frame-Options on an interactive frontend
-* Reflected CORS origin with credentials
-* Sensitive-looking endpoint candidate
-* Potential exposed file reference
-
-### Needs Manual Validation
-
-Evidence is insufficient or requires controlled approval.
-
-Example:
-
-* CORS with credentials requires authorized test account
-* Authz/IDOR requires controlled account pair
-* Admin-looking endpoint requires authorized validation
-
-### Confirmed Finding
-
-A reproducible issue with clear impact, validated within scope and policy.
-
-### Report Draft
-
-A structured report generated from confirmed or manually validated evidence.
+* Refactor only one workflow group at a time.
+* Run tests after each workflow refactor.
+* Keep outputs backward compatible unless intentionally documented.
+* Do not change request budgets.
+* Do not add new external requests.
+* Do not add new risk profiles unless exposing new tools.
+* Do not add new vulnerability validation.
 
 ---
 
-## Finding Schema
+## Test Strategy for v0.5
 
-Every saved finding should try to include:
+Minimum tests that must continue passing:
 
-```json
-{
-  "type": "observation",
-  "title": "",
-  "target": "",
-  "category": "",
-  "vulnerability_category": "",
-  "endpoint_classification": {
-    "classification": "",
-    "confidence": "",
-    "reason": ""
-  },
-  "severity": "info",
-  "confidence": "medium",
-  "status": "observation",
-  "priority": {
-    "priority": "low",
-    "score": 0,
-    "reasons": []
-  },
-  "evidence_summary": "",
-  "validator_result": {
-    "status": "",
-    "severity": "",
-    "confidence": "",
-    "should_report": false,
-    "reason": "",
-    "false_positive_notes": []
-  },
-  "next_step": "",
-  "safety": {
-    "requests_sent": 0,
-    "fuzzing": false,
-    "bruteforce": false,
-    "exploitation": false,
-    "crawling": false,
-    "credentialed_request": false
-  }
-}
+```text
+tests/test_bounded_crawl_workflow.py
+tests/test_bounded_crawl_foundation.py
+tests/test_js_endpoint_extraction_workflow.py
+tests/test_sitemap_parser_workflow.py
+tests/test_robots_securitytxt_workflow.py
+tests/test_attack_surface_inventory.py
+tests/test_risk_gate.py
+tests/test_skill_loader.py
 ```
+
+New v0.5 tests:
+
+```text
+tests/test_safety_metadata.py
+tests/test_http_result_utils.py
+tests/test_inventory_candidate_builder.py
+tests/test_result_schema.py
+```
+
+Important assertions:
+
+* Safety metadata defaults to safe values.
+* HTTP result utilities convert exceptions to request_error.
+* HTTP result utilities reject sensitive headers from summaries.
+* HTTP result utilities preserve safe content-type and body-size metadata.
+* Inventory candidate builder runs conservative validator.
+* Inventory candidate builder does not store sensitive fields.
+* Result schema helpers preserve required keys.
+* Existing workflow output remains compatible.
+* All v0.4 workflow tests continue passing.
 
 ---
 
@@ -1407,16 +924,15 @@ tool_safe_sitemap_parser_workflow
 
 ### Medium
 
-More targeted validation or multiple controlled requests.
+Multiple controlled requests or more sensitive inventory collection.
 
 Examples:
 
 ```text
-future exposed file observation
-future open redirect observation
-future GraphQL observation
 tool_safe_js_endpoint_extraction_workflow
 tool_safe_bounded_crawl_workflow
+future controlled open redirect observation
+future controlled GraphQL observation
 ```
 
 ### High
@@ -1455,106 +971,37 @@ Any tool missing from `tool_risk_profiles.json` should be treated as unknown and
 
 ---
 
-## v0.4 Completion Status
+## v0.5 Acceptance Criteria
 
-Completed implementation target:
+v0.5 is complete when:
 
-```text
-Attack Surface Inventory
-```
-
-Completed implementation order:
-
-### Step 1: Inventory foundation
-
-```text
-tools/url_normalizer.py
-tools/endpoint_inventory.py
-validators/inventory_validator.py
-tests/test_attack_surface_inventory.py
-docs/ATTACK_SURFACE_INVENTORY.md
-```
-
-### Step 2: Public metadata workflow
-
-```text
-workflows/safe_robots_securitytxt_workflow.py
-config/tool_risk_profiles.json
-server.py wrapper
-```
-
-### Step 3: Sitemap workflow
-
-```text
-workflows/safe_sitemap_parser_workflow.py
-config/tool_risk_profiles.json
-server.py wrapper
-```
-
-### Step 4: JS endpoint extraction workflow
-
-```text
-tools/js_endpoint_extractor.py
-workflows/safe_js_endpoint_extraction_workflow.py
-config/tool_risk_profiles.json
-server.py wrapper
-```
-
-### Step 5: Bounded in-scope crawl workflow
-
-```text
-tools/html_link_extractor.py
-tools/crawl_queue.py
-workflows/safe_bounded_crawl_workflow.py
-config/tool_risk_profiles.json
-server.py wrapper
-```
-
-The bounded crawler should be classified as `medium` risk and require `risk_gate` plus explicit approval.
-
-### Step 6: Documentation and tests
-
-```text
-docs/ATTACK_SURFACE_INVENTORY.md
-workflow tests
-```
-
-v0.4 is marked completed. It builds attack surface inventory only and does not perform vulnerability validation.
+1. Shared safety metadata helper exists and is tested.
+2. Shared HTTP result utility module exists and is tested.
+3. Shared inventory candidate builder exists and is tested.
+4. Shared result schema helper exists and is tested.
+5. At least the v0.4 inventory workflows are refactored to use shared helpers where safe.
+6. `server.py` is thinner or MCP wrappers are grouped under `mcp_tools/`.
+7. Existing MCP tool names remain stable.
+8. Existing request budgets remain unchanged.
+9. Existing v0.4 workflow tests pass.
+10. New v0.5 helper tests pass.
+11. No exploit automation is added.
+12. No vulnerability validation is added.
+13. No fuzzing, brute force, credential testing, form submission, or state-changing behavior is added.
+14. Documentation is updated.
+15. v0.6 controlled validation remains future work.
 
 ---
 
-## v0.4 Acceptance Criteria
-
-v0.4 is complete when:
-
-1. Inventory items can be created with a stable schema.
-2. URLs can be normalized safely.
-3. Duplicate endpoints can be de-duplicated.
-4. Public metadata endpoints can be observed safely.
-5. Sitemap URLs can be parsed with size and count limits.
-6. JavaScript endpoint candidates can be extracted without executing JavaScript.
-7. Bounded crawler can collect same-scope HTML links without unrestricted crawling.
-8. Inventory items are saved without sensitive data.
-9. Inventory summary can group endpoints by target, source, endpoint type, and priority.
-10. New exposed MCP tools have risk profiles.
-11. New workflows check scope first.
-12. New workflows return safety metadata.
-13. Tests pass.
-14. Existing `tests/test_risk_gate.py` and `tests/test_skill_loader.py` still pass.
-15. No exploit automation is added.
-16. No brute force, DoS, mass fuzzing, credential testing, unrestricted crawling, or destructive action is added.
-
----
-
-## Future v0.5 Direction
+## Future v0.6 Direction
 
 Future milestone:
 
 ```text
-v0.5-controlled-validation
+v0.6-controlled-validation
 ```
 
-Possible v0.5 scope:
+Possible v0.6 scope:
 
 ```text
 controlled_open_redirect_observation
@@ -1564,68 +1011,22 @@ controlled_authz_review_preparation
 controlled_idor_validation_preparation
 ```
 
-v0.5 should use the v0.4 inventory as input.
+v0.6 should use v0.4 inventory and v0.5 standardized helpers as input.
 
-The purpose of v0.5 is controlled validation planning for selected high-value inventory items. It may include controlled open redirect observation, exposed file observation, GraphQL observation, and authz/IDOR validation preparation.
+The purpose of v0.6 is controlled validation planning for selected high-value inventory items.
 
-v0.5 is not complete yet.
+v0.6 is not complete yet.
 
-v0.5 must still use:
+v0.6 must still use:
 
-* Scope guard.
-* Risk gate.
-* Explicit approval.
-* Request limits.
-* Evidence rules.
-* Sensitive-data minimization.
-
----
-
-## Testing Strategy
-
-Minimum current tests:
-
-```text
-tests/test_risk_gate.py
-tests/test_skill_loader.py
-```
-
-v0.4 adds:
-
-```text
-tests/test_attack_surface_inventory.py
-tests/test_robots_securitytxt_workflow.py
-tests/test_sitemap_parser_workflow.py
-tests/test_js_endpoint_extraction_workflow.py
-tests/test_bounded_crawl_foundation.py
-tests/test_bounded_crawl_workflow.py
-```
-
-Future tests:
-
-```text
-tests/test_scope_guard.py
-tests/test_workflows.py
-tests/test_finding_summarizer.py
-```
-
-Important assertions:
-
-* Risk gate should deny unknown tools.
-* Risk gate should deny blocked tools.
-* Risk gate should require approval for low-risk external workflows.
-* Skill loader should load valid local runtime skills.
-* Skill loader should reject missing skills safely.
-* Skill loader should reject path traversal.
-* Skill loader should reject absolute paths.
-* Skill loader should not execute skill content.
-* URL normalizer should remove fragments.
-* URL normalizer should reject unsupported schemes.
-* Endpoint inventory should de-duplicate normalized URLs.
-* JS extractor should not execute JavaScript.
-* Bounded crawler should enforce max pages, max depth, max requests, rate delay, allowed methods, allowed content types, and same-scope links.
-* Bounded crawler should not submit forms or use cookies, tokens, credentials, POST, PUT, PATCH, or DELETE.
-* Existing workflow behavior should not change when adding inventory tools.
+* Scope guard
+* Risk gate
+* Explicit approval
+* Request limits
+* Evidence rules
+* Sensitive-data minimization
+* Standard result schema
+* Standard safety metadata
 
 ---
 
@@ -1644,21 +1045,23 @@ For every change:
 Suggested branch naming:
 
 ```text
-feature/attack-surface-inventory
-feature/robots-securitytxt-workflow
-feature/js-endpoint-extraction
-test/endpoint-inventory
-docs/attack-surface-inventory
+feature/core-refactor-result-standardization
+feature/shared-safety-metadata
+feature/http-result-utils
+feature/inventory-candidate-builder
+feature/mcp-tool-grouping
+docs/refactoring-plan
 ```
 
 Suggested commit style:
 
 ```text
-Update architecture for v0.4 attack surface inventory
-Add endpoint inventory foundation
-Add safe robots securitytxt workflow
-Add safe sitemap parser workflow
-Add safe JS endpoint extraction workflow
-Add safe bounded crawl workflow
-Document attack surface inventory architecture
+Update architecture for v0.5 refactor
+Add shared safety metadata helper
+Add HTTP result utility helpers
+Add inventory candidate builder
+Add workflow result schema helpers
+Refactor sitemap workflow helpers
+Group MCP tool wrappers
+Document v0.5 refactor architecture
 ```
