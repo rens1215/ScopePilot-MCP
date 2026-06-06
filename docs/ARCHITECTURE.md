@@ -23,10 +23,10 @@ This project is not an unrestricted attack automation tool. Every external actio
 Current stable version:
 
 ```text
-v0.2-risk-gate-and-execution-policy
+v0.3-runtime-skills-and-skill-loader
 ```
 
-v0.2 completed:
+Completed through v0.3:
 
 * MCP server integration
 * Scope guard
@@ -45,6 +45,10 @@ v0.2 completed:
 * Approval controller
 * Risk evaluation MCP tool
 * Tool risk model documentation
+* Runtime skill loader
+* Runtime skill loader tests
+* Runtime agent skill definitions
+* Runtime skill documentation
 * Runtime skill folder structure
 * Git version control
 * Logging
@@ -65,15 +69,15 @@ tool_write_report_draft
 
 ---
 
-## Next Architecture Target
+## Current Architecture Target
 
-Next milestone:
+Completed milestone:
 
 ```text
 v0.3-runtime-skills-and-skill-loader
 ```
 
-The next target is to implement the runtime skill knowledge layer.
+v0.3 implements the runtime skill knowledge layer.
 
 v0.3 does not add new vulnerability workflows.
 v0.3 does not add exploit logic.
@@ -83,9 +87,9 @@ The purpose of v0.3 is to let the future runtime AI agent load structured skill 
 
 ---
 
-## v0.3 Required Files
+## v0.3 Completed Files
 
-Required implementation files:
+Completed implementation and documentation files:
 
 ```text
 tools/skill_loader.py
@@ -93,7 +97,7 @@ tests/test_skill_loader.py
 docs/RUNTIME_SKILLS.md
 ```
 
-Required runtime skill files:
+Completed runtime skill files:
 
 ```text
 skills/agent_runtime/passive_recon/SKILL.md
@@ -1156,9 +1160,9 @@ Any tool missing from `tool_risk_profiles.json` should be treated as unknown and
 
 ---
 
-## v0.3 Implementation Plan
+## v0.3 Completed Implementation
 
-The next implementation target is:
+Completed target:
 
 ```text
 Runtime Skills and Skill Loader
@@ -1185,7 +1189,6 @@ Step 3:
 
 ```text
 docs/RUNTIME_SKILLS.md
-docs/CURRENT_STATE.md
 ```
 
 ---
