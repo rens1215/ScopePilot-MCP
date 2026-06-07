@@ -619,7 +619,6 @@ The project intentionally avoids unrestricted exploitation, destructive testing,
 
 ---
 
-
 ## Disclaimer
 
 ScopePilot MCP is a security testing framework for authorized and in-scope use only.
@@ -627,3 +626,9 @@ ScopePilot MCP is a security testing framework for authorized and in-scope use o
 The maintainers and users are responsible for ensuring that all testing activity complies with applicable laws, program rules, and authorization boundaries.
 
 This project does not provide permission to test third-party systems.
+
+---
+
+## License
+
+This project is licensed under the MIT License.
