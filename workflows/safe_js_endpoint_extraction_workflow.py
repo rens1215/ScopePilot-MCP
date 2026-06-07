@@ -1,12 +1,21 @@
 from html.parser import HTMLParser
 from urllib.parse import urlsplit, urlunsplit
 
-from tools.endpoint_inventory import build_inventory_item
+from tools.http_result_utils import (
+    base_http_observation,
+    get_content_type,
+    headers_summary,
+    is_allowed_content_type,
+    probe_body_text,
+    safe_http_probe_call,
+)
+from tools.inventory_candidate_builder import build_validated_inventory_candidate
 from tools.js_endpoint_extractor import extract_js_endpoints
 from tools.logger import log_event
+from tools.result_schema import build_workflow_result
+from tools.safety_metadata import build_safety_metadata
 from tools.scope_guard import check_scope
 from tools.url_normalizer import normalize_url
-from validators.inventory_validator import validate_inventory_item
 
 try:
     from tools.http_probe import http_probe
@@ -33,14 +42,6 @@ ALLOWED_JS_CONTENT_TYPES = {
     "text/ecmascript",
 }
 
-SAFE_HEADER_KEYS = {
-    "content-type",
-    "content-length",
-    "last-modified",
-    "etag",
-    "cache-control",
-}
-
 
 class _ScriptSrcParser(HTMLParser):
     def __init__(self) -> None:
@@ -57,15 +58,7 @@ class _ScriptSrcParser(HTMLParser):
 
 
 def _safety(requests_sent: int, scan_level: str = "medium-risk") -> dict:
-    return {
-        "requests_sent": requests_sent,
-        "scan_level": scan_level,
-        "fuzzing": False,
-        "bruteforce": False,
-        "exploitation": False,
-        "crawling": False,
-        "credentialed_request": False,
-    }
+    return build_safety_metadata(requests_sent=requests_sent, scan_level=scan_level)
 
 
 def _nonnegative_int(value: int, default: int = 0) -> int:
@@ -91,34 +84,12 @@ def _target_url(target: str) -> str:
     return urlunsplit((scheme, netloc, path or "/", parts.query, ""))
 
 
-def _headers_summary(headers: dict | None) -> dict:
-    if not isinstance(headers, dict):
-        return {}
-
-    # Store only safe metadata headers. Never copy Set-Cookie, Authorization,
-    # tokens, secrets, personal data, or raw response bodies into inventory.
-    summary = {}
-    for key, value in headers.items():
-        lowered = str(key).lower()
-        if lowered in SAFE_HEADER_KEYS:
-            summary[lowered] = value
-    return summary
-
-
-def _content_type(probe: dict) -> str:
-    value = probe.get("content_type", "")
-    if not value and isinstance(probe.get("headers"), dict):
-        value = probe["headers"].get("content-type", "")
-
-    return str(value).split(";", 1)[0].strip().lower()
-
-
 def _content_type_allowed(probe: dict, allowed_types: set[str]) -> tuple[bool, str]:
-    content_type = _content_type(probe)
+    content_type = get_content_type(probe)
     if not content_type:
         return True, "Content-Type is empty; conservatively allowed for static parsing."
 
-    if content_type in allowed_types:
+    if is_allowed_content_type(content_type, allowed_types):
         return True, ""
 
     return False, f"Unsupported content type for static parsing: {content_type}."
@@ -138,31 +109,7 @@ def _safe_http_probe(url: str) -> tuple[dict, bool]:
             "error": "HTTP probe helper is unavailable.",
         }, False
 
-    try:
-        probe = http_probe(url)
-    except Exception as error:
-        return {
-            "blocked": False,
-            "error": f"HTTP probe raised exception: {error}",
-        }, True
-
-    if not isinstance(probe, dict):
-        return {
-            "blocked": False,
-            "error": "HTTP probe returned a non-dict result.",
-        }, True
-
-    return probe, True
-
-
-def _probe_body_text(probe: dict) -> str:
-    for key in ("body", "text", "body_text", "content", "response_text"):
-        value = probe.get(key)
-        if isinstance(value, str):
-            return value
-        if isinstance(value, bytes):
-            return value.decode("utf-8", errors="replace")
-    return ""
+    return safe_http_probe_call(url, probe_func=http_probe)
 
 
 def _extract_script_srcs(html_text: str) -> list[str]:
@@ -188,17 +135,17 @@ def _same_host_or_in_scope(normalized_url: str, target_hostname: str) -> bool:
 
 
 def _build_candidate(target: str, raw_candidate: str, normalized_url: str, js_url: str, probe: dict) -> dict:
-    item = build_inventory_item(
+    return build_validated_inventory_candidate(
         target=target,
-        url=raw_candidate,
+        raw_url=raw_candidate,
         normalized_url=normalized_url,
         source="javascript_static_analysis",
         discovered_by="safe_js_endpoint_extraction_workflow",
         evidence={
             "status_code": probe.get("status_code"),
-            "content_type": probe.get("content_type", ""),
+            "content_type": get_content_type(probe),
             "body_size": probe.get("body_size"),
-            "headers_summary": _headers_summary(probe.get("headers")),
+            "headers_summary": headers_summary(probe.get("headers")),
         },
         notes=(
             f"Endpoint candidate extracted from JavaScript file {js_url}. "
@@ -206,27 +153,11 @@ def _build_candidate(target: str, raw_candidate: str, normalized_url: str, js_ur
         ),
     )
 
-    validation = validate_inventory_item(item)
-    item["endpoint_type"] = validation.get("endpoint_type", "unknown")
-    item["priority"] = validation.get("priority", "low")
-    item["confidence"] = validation.get("confidence", "low")
-    item["recommended_next_skill"] = validation.get("recommended_next_skill", "")
-    item["validator_result"] = validation
-
-    return item
-
 
 def _base_observation(url: str, source: str, probe: dict, status: str, error: str | None = None) -> dict:
-    return {
-        "source": source,
-        "url": url,
-        "status": status,
-        "status_code": probe.get("status_code"),
-        "content_type": probe.get("content_type", ""),
-        "body_size": probe.get("body_size"),
-        "headers_summary": _headers_summary(probe.get("headers")),
-        "error": error if error is not None else probe.get("error"),
-    }
+    observation = base_http_observation(url, probe, status, error=error)
+    observation["source"] = source
+    return observation
 
 
 def safe_js_endpoint_extraction_workflow(
@@ -275,19 +206,14 @@ def safe_js_endpoint_extraction_workflow(
     )
 
     if not scope.get("in_scope"):
-        return {
-            "target": target,
-            "stopped": True,
-            "reason": "Target is not in scope.",
-            "scope": scope,
-            "target_url": None,
-            "observations": [],
-            "script_urls": [],
-            "skipped_scripts": [],
-            "endpoint_candidates": [],
-            "skipped_endpoint_candidates": [],
-            "inventory_candidates": [],
-            "summary": {
+        return build_workflow_result(
+            target=target,
+            stopped=True,
+            reason="Target is not in scope.",
+            scope=scope,
+            observations=[],
+            inventory_candidates=[],
+            summary={
                 **limit_summary,
                 "html_requested": False,
                 "script_count": 0,
@@ -296,8 +222,13 @@ def safe_js_endpoint_extraction_workflow(
                 "skipped_script_count": 0,
                 "skipped_endpoint_candidate_count": 0,
             },
-            "safety": _safety(0, scan_level="blocked"),
-        }
+            safety=_safety(0, scan_level="blocked"),
+            target_url=None,
+            script_urls=[],
+            skipped_scripts=[],
+            endpoint_candidates=[],
+            skipped_endpoint_candidates=[],
+        )
 
     target_url = _target_url(target)
     target_hostname = (scope.get("hostname") or "").lower()
@@ -338,7 +269,7 @@ def safe_js_endpoint_extraction_workflow(
                 )
             )
         else:
-            html_text = _probe_body_text(html_probe)
+            html_text = probe_body_text(html_probe)
             if not html_text:
                 observations.append(
                     _base_observation(
@@ -450,7 +381,7 @@ def safe_js_endpoint_extraction_workflow(
                         )
                         continue
 
-                    js_text = _probe_body_text(js_probe)
+                    js_text = probe_body_text(js_probe)
                     js_size = len(js_text.encode("utf-8"))
                     if not js_text:
                         observations.append(
@@ -551,18 +482,13 @@ def safe_js_endpoint_extraction_workflow(
         f"candidates={len(inventory_candidates)}"
     )
 
-    return {
-        "target": target,
-        "stopped": False,
-        "scope": scope,
-        "target_url": target_url,
-        "observations": observations,
-        "script_urls": script_urls,
-        "skipped_scripts": skipped_scripts,
-        "endpoint_candidates": endpoint_candidates,
-        "skipped_endpoint_candidates": skipped_endpoint_candidates,
-        "inventory_candidates": inventory_candidates,
-        "summary": {
+    return build_workflow_result(
+        target=target,
+        stopped=False,
+        scope=scope,
+        observations=observations,
+        inventory_candidates=inventory_candidates,
+        summary={
             **limit_summary,
             "html_requested": True,
             "script_count": len(script_urls),
@@ -571,5 +497,10 @@ def safe_js_endpoint_extraction_workflow(
             "skipped_script_count": len(skipped_scripts),
             "skipped_endpoint_candidate_count": len(skipped_endpoint_candidates),
         },
-        "safety": _safety(requests_sent),
-    }
+        safety=_safety(requests_sent),
+        target_url=target_url,
+        script_urls=script_urls,
+        skipped_scripts=skipped_scripts,
+        endpoint_candidates=endpoint_candidates,
+        skipped_endpoint_candidates=skipped_endpoint_candidates,
+    )
