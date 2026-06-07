@@ -1,11 +1,19 @@
 from urllib.parse import urlsplit, urlunsplit
 from xml.etree import ElementTree
 
-from tools.endpoint_inventory import build_inventory_item
+from tools.http_result_utils import (
+    base_http_observation,
+    get_content_type,
+    headers_summary,
+    probe_body_text,
+    safe_http_probe_call,
+)
+from tools.inventory_candidate_builder import build_validated_inventory_candidate
 from tools.logger import log_event
+from tools.result_schema import build_blocked_result, build_workflow_result
+from tools.safety_metadata import build_safety_metadata
 from tools.scope_guard import check_scope
 from tools.url_normalizer import normalize_url
-from validators.inventory_validator import validate_inventory_item
 
 try:
     from tools.http_probe import http_probe
@@ -17,25 +25,9 @@ SITEMAP_PATH = "/sitemap.xml"
 DEFAULT_MAX_SITEMAP_BYTES = 1024 * 1024
 DEFAULT_MAX_URLS = 100
 
-SAFE_HEADER_KEYS = {
-    "content-type",
-    "content-length",
-    "last-modified",
-    "etag",
-    "cache-control",
-}
-
 
 def _safety(requests_sent: int, scan_level: str = "low-risk") -> dict:
-    return {
-        "requests_sent": requests_sent,
-        "scan_level": scan_level,
-        "fuzzing": False,
-        "bruteforce": False,
-        "exploitation": False,
-        "crawling": False,
-        "credentialed_request": False,
-    }
+    return build_safety_metadata(requests_sent=requests_sent, scan_level=scan_level)
 
 
 def _target_origin(target: str) -> str:
@@ -50,20 +42,6 @@ def _sitemap_url(target: str) -> str:
     return f"{_target_origin(target).rstrip('/')}{SITEMAP_PATH}"
 
 
-def _headers_summary(headers: dict | None) -> dict:
-    if not isinstance(headers, dict):
-        return {}
-
-    # Keep only non-sensitive response metadata. Cookies, tokens, secrets, and
-    # raw bodies are deliberately excluded from inventory evidence.
-    summary = {}
-    for key, value in headers.items():
-        lowered = str(key).lower()
-        if lowered in SAFE_HEADER_KEYS:
-            summary[lowered] = value
-    return summary
-
-
 def _safe_http_probe(sitemap_url: str) -> tuple[dict, bool]:
     """
     Call the low-risk HTTP helper and normalize failures into a probe dict.
@@ -73,37 +51,7 @@ def _safe_http_probe(sitemap_url: str) -> tuple[dict, bool]:
     observations so the workflow does not crash on transient network/helper
     failures.
     """
-    if http_probe is None:
-        return {
-            "blocked": False,
-            "error": "HTTP probe helper is unavailable.",
-        }, False
-
-    try:
-        probe = http_probe(sitemap_url)
-    except Exception as error:
-        return {
-            "blocked": False,
-            "error": f"HTTP probe raised exception: {error}",
-        }, True
-
-    if not isinstance(probe, dict):
-        return {
-            "blocked": False,
-            "error": "HTTP probe returned a non-dict result.",
-        }, True
-
-    return probe, True
-
-
-def _probe_body_text(probe: dict) -> str:
-    for key in ("body", "text", "body_text", "content", "response_text"):
-        value = probe.get(key)
-        if isinstance(value, str):
-            return value
-        if isinstance(value, bytes):
-            return value.decode("utf-8", errors="replace")
-    return ""
+    return safe_http_probe_call(sitemap_url, probe_func=http_probe)
 
 
 def _extract_sitemap_locations(xml_text: str, max_urls: int) -> list[str]:
@@ -142,17 +90,17 @@ def _same_host_or_in_scope(normalized_url: str, target_hostname: str) -> bool:
 
 
 def _build_candidate(target: str, extracted_url: str, normalized_url: str, probe: dict) -> dict:
-    item = build_inventory_item(
+    return build_validated_inventory_candidate(
         target=target,
-        url=extracted_url,
+        raw_url=extracted_url,
         normalized_url=normalized_url,
         source="sitemap",
         discovered_by="safe_sitemap_parser_workflow",
         evidence={
             "status_code": probe.get("status_code"),
-            "content_type": probe.get("content_type", ""),
+            "content_type": get_content_type(probe),
             "body_size": probe.get("body_size"),
-            "headers_summary": _headers_summary(probe.get("headers")),
+            "headers_summary": headers_summary(probe.get("headers")),
         },
         notes=(
             "URL extracted from sitemap XML only. The workflow did not request "
@@ -160,27 +108,12 @@ def _build_candidate(target: str, extracted_url: str, normalized_url: str, probe
         ),
     )
 
-    validation = validate_inventory_item(item)
-    item["endpoint_type"] = validation.get("endpoint_type", "unknown")
-    item["priority"] = validation.get("priority", "low")
-    item["confidence"] = validation.get("confidence", "low")
-    item["recommended_next_skill"] = validation.get("recommended_next_skill", "")
-    item["validator_result"] = validation
-
-    return item
-
 
 def _base_observation(sitemap_url: str, probe: dict, status: str, error: str | None = None) -> dict:
     return {
+        **base_http_observation(sitemap_url, probe, status, error=error),
         "path": SITEMAP_PATH,
         "source": "sitemap",
-        "url": sitemap_url,
-        "status": status,
-        "status_code": probe.get("status_code"),
-        "content_type": probe.get("content_type", ""),
-        "body_size": probe.get("body_size"),
-        "headers_summary": _headers_summary(probe.get("headers")),
-        "error": error if error is not None else probe.get("error"),
     }
 
 
@@ -214,19 +147,15 @@ def safe_sitemap_parser_workflow(
     )
 
     if not scope.get("in_scope"):
-        return {
-            "target": target,
-            "stopped": True,
-            "reason": "Target is not in scope.",
-            "scope": scope,
-            "sitemap_url": None,
-            "observations": [],
-            "extracted_urls": [],
-            "skipped_urls": [],
-            "inventory_candidates": [],
-            "allowed_sitemap_path": SITEMAP_PATH,
-            "safety": _safety(0, scan_level="blocked"),
-        }
+        return build_blocked_result(
+            target=target,
+            reason="Target is not in scope.",
+            scope=scope,
+            sitemap_url=None,
+            extracted_urls=[],
+            skipped_urls=[],
+            allowed_sitemap_path=SITEMAP_PATH,
+        )
 
     sitemap_url = _sitemap_url(target)
     log_event(f"workflow: safe_sitemap_parser request_start url={sitemap_url}")
@@ -263,7 +192,7 @@ def safe_sitemap_parser_workflow(
                 )
             )
         else:
-            xml_text = _probe_body_text(probe)
+            xml_text = probe_body_text(probe)
             xml_size = len(xml_text.encode("utf-8"))
 
             if not xml_text:
@@ -341,21 +270,21 @@ def safe_sitemap_parser_workflow(
         f"requests_sent={requests_sent} candidates={len(inventory_candidates)}"
     )
 
-    return {
-        "target": target,
-        "stopped": False,
-        "scope": scope,
-        "sitemap_url": sitemap_url,
-        "observations": observations,
-        "extracted_urls": extracted_urls,
-        "skipped_urls": skipped_urls,
-        "inventory_candidates": inventory_candidates,
-        "allowed_sitemap_path": SITEMAP_PATH,
-        "summary": {
+    return build_workflow_result(
+        target=target,
+        stopped=False,
+        scope=scope,
+        observations=observations,
+        inventory_candidates=inventory_candidates,
+        summary={
             "sitemap_requested": True,
             "inventory_candidate_count": len(inventory_candidates),
             "extracted_url_count": len(extracted_urls),
             "skipped_url_count": len(skipped_urls),
         },
-        "safety": _safety(requests_sent),
-    }
+        safety=_safety(requests_sent),
+        sitemap_url=sitemap_url,
+        extracted_urls=extracted_urls,
+        skipped_urls=skipped_urls,
+        allowed_sitemap_path=SITEMAP_PATH,
+    )
