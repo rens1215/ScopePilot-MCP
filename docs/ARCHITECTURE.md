@@ -3,14 +3,14 @@
 ## Project Name
 
 ```text
-MCP_SERVER_FOR_LLM_HACKER
+ScopePilot MCP
 ```
 
 ---
 
 ## System Goal
 
-本專案是一個以 MCP tools 為核心的 AI-assisted authorized web security testing platform。
+ScopePilot MCP is a safe and bounded AI-Agent security testing framework powered by Model Context Protocol.
 
 系統目標是讓 runtime AI agent 可以在明確授權、明確 in-scope 的目標上，自動化執行：
 

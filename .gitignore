@@ -1,29 +1,30 @@
-# Python virtual environment
-.venv/
-venv/
-env/
-
-# Python cache
+# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
+.venv/
+venv/
 
-# VS Code
-.vscode/
+# Environment / secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.crt
 
 # Runtime data
+data/*.jsonl
 data/*.log
-data/findings.jsonl
+data/mcp.log
 
-# Secrets / env
-.env
-*.env
+# Local config that may contain private scope
+config/scope.local.json
+config/*.local.json
 
-# OS files
+# IDE
+.vscode/
+.idea/
+
+# OS
 .DS_Store
 Thumbs.db
-
-# MCP / local temp
-*.tmp
-*.bak

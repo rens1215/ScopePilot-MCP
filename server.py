@@ -6,7 +6,7 @@ from mcp_tools.scope_tools import register_scope_tools
 from mcp_tools.workflow_tools import register_workflow_tools
 
 
-mcp = FastMCP("Bug Bounty MCP Toolbox")
+mcp = FastMCP("ScopePilot MCP")
 
 # Keep server.py as the MCP composition root only. Tool behavior lives in the
 # grouped thin-wrapper modules; workflow logic, scope checks, risk evaluation,
