@@ -1,12 +1,12 @@
-# SecureAudit MCP
+# ScopePilot MCP
 
 **A safe and bounded AI-Agent security testing framework powered by Model Context Protocol.**
 
-SecureAudit MCP is an AI-assisted security testing toolbox built around MCP tools.
-It is designed to help a local AI agent perform authorized, in-scope web security testing tasks such as scoped reconnaissance, attack surface inventory, controlled workflow execution, evidence organization, finding prioritization, finding summarization, and report draft generation.
+ScopePilot MCP is an AI-assisted security testing toolbox built around MCP tools.
+It helps a local AI agent perform authorized, in-scope web security testing tasks such as scoped reconnaissance, attack surface inventory, controlled workflow execution, evidence organization, finding prioritization, finding summarization, and report draft generation.
 
 This project is not an unrestricted attack automation tool.
-All external actions are designed to pass through scope checks, risk evaluation, request limits, approval policy, workflow safety rules, and sensitive-data minimization.
+All external actions are designed to pass through scope checks, risk evaluation, request limits, approval policy, workflow safety rules, standardized result schemas, and sensitive-data minimization.
 
 ---
 
@@ -29,14 +29,14 @@ Current status:
 
 ## Project Goals
 
-SecureAudit MCP aims to provide a safe MCP-based toolbox that allows an AI agent to:
+ScopePilot MCP aims to provide a safe MCP-based toolbox that allows an AI agent to:
 
 * Check whether a target is in scope.
 * Evaluate tool execution risk before running workflows.
 * Request explicit approval when needed.
 * Perform low-risk reconnaissance.
 * Build an attack surface inventory.
-* Extract endpoint candidates from sitemap, JavaScript, and bounded crawling.
+* Extract endpoint candidates from robots.txt, sitemap.xml, JavaScript, and bounded crawling.
 * Prioritize interesting endpoints for later validation.
 * Summarize observations and candidate findings.
 * Generate report drafts without automatic submission.
@@ -47,7 +47,7 @@ The project focuses on **authorized security testing only**.
 
 ## What This Project Does Not Do
 
-SecureAudit MCP does not currently perform:
+ScopePilot MCP does not currently perform:
 
 * Exploit automation
 * Exploit chaining
@@ -65,7 +65,7 @@ SecureAudit MCP does not currently perform:
 * Real data exfiltration
 * Automatic bounty submission
 
-Current workflows are designed for safe reconnaissance, attack surface inventory, and report preparation.
+Current workflows are designed for safe reconnaissance, attack surface inventory, result organization, and report preparation.
 
 Controlled validation is planned for future versions and must remain bounded, approved, and scope-aware.
 
@@ -309,16 +309,13 @@ Storage / Summary / Report Draft
 │   └── risk_gate.py
 │
 ├── config/
-│   ├── scope.json
+│   ├── scope.example.json
 │   ├── scan_policy.json
 │   ├── false_positive_rules.json
 │   └── tool_risk_profiles.json
 │
 ├── data/
-│   ├── findings.jsonl
-│   ├── evidence.jsonl
-│   ├── endpoint_inventory.jsonl
-│   └── mcp.log
+│   └── .gitkeep
 │
 ├── docs/
 │   ├── ARCHITECTURE.md
@@ -429,8 +426,8 @@ docs/RESULT_SCHEMA.md
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/secureaudit-mcp.git
-cd secureaudit-mcp
+git clone https://github.com/<your-username>/ScopePilot-MCP.git
+cd ScopePilot-MCP
 ```
 
 ### 2. Create a virtual environment
@@ -465,6 +462,12 @@ python -m pip install -r requirements.txt
 
 Before running any workflow, configure your authorized scope.
 
+Recommended public example file:
+
+```text
+config/scope.example.json
+```
+
 Example:
 
 ```json
@@ -477,14 +480,13 @@ Example:
 }
 ```
 
-Recommended file:
+For local private testing, copy it to:
 
 ```text
 config/scope.json
 ```
 
-For public GitHub repositories, avoid committing private scope targets.
-Use `config/scope.example.json` for examples and keep real scope files local when needed.
+Do not commit private scope targets to a public repository.
 
 ---
 
@@ -520,7 +522,7 @@ For an in-scope target, the runtime AI agent should follow this order:
 6. Recommend next safe step
 ```
 
-Example inventory sequence:
+Example attack surface inventory sequence:
 
 ```text
 tool_check_scope
@@ -617,9 +619,10 @@ The project intentionally avoids unrestricted exploitation, destructive testing,
 
 ---
 
+
 ## Disclaimer
 
-SecureAudit MCP is a security testing framework for authorized and in-scope use only.
+ScopePilot MCP is a security testing framework for authorized and in-scope use only.
 
 The maintainers and users are responsible for ensuring that all testing activity complies with applicable laws, program rules, and authorization boundaries.
 

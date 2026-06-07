@@ -1,112 +1,133 @@
 # AGENTS.md
 
-## Commenting Rules
+## Project Name
 
-- Generated code should include clear comments for security boundaries, risk decisions, workflow phases, and fail-closed behavior.
-- Public functions should include docstrings explaining purpose, inputs, outputs, and safety constraints.
-- Avoid noisy comments that simply repeat obvious code.
-- Tests should include comments explaining what behavior each test protects.
-
----
+```text
+ScopePilot MCP
+```
 
 ## Project Goal
 
-This project is an AI-assisted authorized web penetration testing platform built around MCP tools.
+ScopePilot MCP is a safe and bounded AI-Agent security testing framework powered by Model Context Protocol.
 
-The system must only operate on explicitly authorized in-scope targets. It is designed to support scoped reconnaissance, controlled validation, evidence collection, prioritization, finding summarization, and reproducible report generation.
+The project provides an MCP toolbox that allows a local AI agent to perform authorized, in-scope web security testing tasks such as:
 
-This project is not an unrestricted attack automation tool. Every external action must pass scope validation, risk policy, and workflow safety rules.
+* scope checking
+* risk evaluation
+* approval-aware workflow execution
+* safe reconnaissance
+* attack surface inventory
+* evidence organization
+* finding prioritization
+* finding summarization
+* report draft generation
+
+This project is not an unrestricted attack automation tool.
+
+Every external action must follow:
+
+* scope guard
+* risk gate
+* approval policy
+* request limits
+* workflow safety rules
+* result schema
+* sensitive-data minimization
 
 ---
 
 ## Current Stable Version
 
-Current stable version:
-
 ```text
-v0.1-safe-passive-recon
+v0.5-core-refactor-and-result-standardization
 ```
 
-Current completed capabilities:
+Completed capabilities through v0.5:
 
 * MCP server integration with LM Studio
 * Scope guard
+* Risk gate
+* Approval controller
+* Tool risk profiles
+* Runtime skill loader
+* Runtime agent skill definitions
 * Safe HTTP probe workflow
 * Safe security headers workflow
 * Safe CORS observation workflow
 * Safe passive recon workflow
-* Endpoint classifier
-* Header validator
-* CORS validator
-* Priority scorer
-* Finding summarizer
-* Runtime skill folder structure
-* Git version control
-* Basic logging
-* Simplified LM Studio toolbox
-
-Current exposed MCP tools should stay minimal.
-
-Recommended exposed tools:
-
-* `tool_check_scope`
-* `tool_safe_http_probe_workflow`
-* `tool_safe_security_headers_workflow`
-* `tool_safe_cors_observation_workflow`
-* `tool_safe_passive_recon_workflow`
-* `tool_summarize_findings`
-* `tool_write_report_draft`
-
-Low-level tools should generally not be exposed directly to LM Studio unless explicitly required.
+* Safe robots/security.txt/sitemap metadata workflow
+* Safe sitemap parser workflow
+* Safe JavaScript endpoint extraction workflow
+* Safe bounded in-scope crawl workflow
+* Attack surface inventory foundation
+* URL normalizer
+* Endpoint inventory builder
+* Inventory validator
+* JavaScript endpoint extractor
+* HTML link extractor
+* Crawl queue
+* Shared safety metadata helper
+* Shared result schema helper
+* Shared HTTP result utility helper
+* Shared inventory candidate builder
+* Refactored workflows using shared helpers
+* Split MCP wrappers into `mcp_tools/`
+* MCP tool registration tests
+* Roadmap, test plan, and result schema documentation
 
 ---
 
 ## Next Milestone
 
-Next milestone:
-
 ```text
-v0.2-risk-gate-and-execution-policy
+v0.6-controlled-validation
 ```
 
-Codex should prioritize implementing the risk control layer.
+v0.6 should focus on controlled validation planning and bounded observation workflows.
 
-Required files for v0.2:
+Possible v0.6 areas:
 
-* `agent/__init__.py`
-* `agent/risk_gate.py`
-* `agent/approval_controller.py`
-* `tools/policy_loader.py`
+* validation plan builder
+* evidence sanitizer
+* controlled open redirect observation
+* controlled exposed file observation
+* controlled GraphQL observation
+* authz / IDOR validation preparation
+
+v0.6 must not become unrestricted exploit automation.
+
+---
+
+## Current Exposed MCP Tools
+
+These tool names must remain stable unless explicitly requested:
+
+```text
+tool_check_scope
+tool_evaluate_action_risk
+tool_safe_http_probe_workflow
+tool_safe_security_headers_workflow
+tool_safe_cors_observation_workflow
+tool_safe_passive_recon_workflow
+tool_safe_robots_securitytxt_workflow
+tool_safe_sitemap_parser_workflow
+tool_safe_js_endpoint_extraction_workflow
+tool_safe_bounded_crawl_workflow
+tool_summarize_findings
+tool_write_report_draft
+```
+
+Do not rename MCP tools without updating:
+
+* `mcp_tools/`
 * `config/tool_risk_profiles.json`
-* `tests/test_risk_gate.py`
-* `docs/TOOL_RISK_MODEL.md`
-
-Optional after tests pass:
-
-* Add `tool_evaluate_action_risk` to `server.py`
-
-Codex must not implement new vulnerability workflows before the risk gate and execution policy are complete.
+* tests
+* docs
+* README
 
 ---
 
 ## Architecture Rules
-
-* `server.py` must only contain MCP tool wrappers.
-* `server.py` must not contain workflow logic.
-* `tools/` contains reusable low-level utilities.
-* `validators/` contains conservative validation and false-positive filtering logic.
-* `workflows/` contains scoped multi-step workflows.
-* `agent/` contains planning, risk gate, approval, execution state, and task routing logic.
-* `config/` contains scope, scan policy, false-positive rules, and tool risk profiles.
-* `skills/agent_runtime/` contains task-specific knowledge for the future runtime AI penetration testing agent.
-* `skills/codex_dev/` contains project maintenance guidance for Codex.
-* `docs/` contains architecture, schema, roadmap, risk model, and test plan documentation.
-* `tests/` contains regression tests.
-* `data/` contains runtime logs and findings and must not be committed except `.gitkeep`.
-
----
-
-## Layer Responsibilities
 
 ### MCP Layer
 
@@ -114,20 +135,33 @@ Location:
 
 ```text
 server.py
+mcp_tools/
 ```
-
-Responsibilities:
-
-* Register MCP tools.
-* Call workflow or utility functions.
-* Return structured results to LM Studio.
 
 Rules:
 
-* Keep `server.py` thin.
-* Do not place business logic in `server.py`.
-* Do not perform raw HTTP requests in `server.py`.
-* Do not modify workflow behavior from `server.py`.
+* `server.py` must stay thin.
+* `server.py` should only create the MCP app, register tool groups, and run the server.
+* `server.py` must not contain workflow logic.
+* `server.py` must not send raw HTTP requests.
+* `mcp_tools/*` should only contain thin MCP wrappers.
+* MCP wrappers must not bypass scope guard, risk gate, or workflow safety rules.
+
+Current grouping:
+
+```text
+mcp_tools/scope_tools.py
+    tool_check_scope
+
+mcp_tools/risk_tools.py
+    tool_evaluate_action_risk
+
+mcp_tools/workflow_tools.py
+    safe workflow wrappers
+
+mcp_tools/report_tools.py
+    report wrappers
+```
 
 ---
 
@@ -141,18 +175,19 @@ agent/
 
 Responsibilities:
 
-* Planning
-* Risk evaluation
-* Approval decision
-* Execution state
-* Task routing
+* risk evaluation
+* approval request construction
+* future planning
+* future execution state
+* future task routing
 
 Rules:
 
 * Agent layer must not directly send HTTP requests.
 * Agent layer must not bypass `scope_guard`.
-* Medium-risk and high-risk actions must go through `risk_gate`.
-* Planner must produce an execution plan, not directly execute tools.
+* Agent layer must not bypass `risk_gate`.
+* Unknown tools must fail closed.
+* Medium-risk and high-risk actions require explicit approval.
 
 ---
 
@@ -166,40 +201,32 @@ workflows/
 
 Responsibilities:
 
-* Check scope.
-* Call low-level tools.
-* Call validators.
-* Save findings.
-* Return safety metadata.
-* Log execution steps.
+* check scope before external requests
+* enforce request budgets
+* call low-level tools
+* call validators
+* produce standardized results
+* return safety metadata
+* avoid sensitive-data storage
 
-Every workflow that may send an external request must:
+Rules:
 
-1. Call `check_scope()` before any external request.
-2. Stop immediately if target is out of scope.
-3. Return `safety.requests_sent`.
-4. Log workflow start, scope result, request start, request completion, validation result, save result, and workflow completion.
-5. Avoid storing sensitive data.
+* Every external workflow must call `check_scope()` before sending requests.
+* Out-of-scope targets must return `requests_sent=0`.
+* Workflows must not perform unrestricted crawling.
+* Workflows must not exploit, fuzz, brute force, or perform credential attacks.
+* Workflows must not submit forms.
+* Workflows must not perform state-changing actions.
+* Workflows must not store cookies, tokens, secrets, personal data, payment data, or full sensitive response bodies.
+* Workflows should use shared helpers where possible.
 
-Every workflow should return a structure similar to:
+Shared helpers:
 
-```json
-{
-  "target": "",
-  "scope": {},
-  "summary": {},
-  "validator_result": {},
-  "saved_result": {},
-  "safety": {
-    "requests_sent": 0,
-    "scan_level": "low-risk",
-    "fuzzing": false,
-    "bruteforce": false,
-    "exploitation": false,
-    "crawling": false,
-    "credentialed_request": false
-  }
-}
+```text
+tools/safety_metadata.py
+tools/result_schema.py
+tools/http_result_utils.py
+tools/inventory_candidate_builder.py
 ```
 
 ---
@@ -214,23 +241,25 @@ tools/
 
 Responsibilities:
 
-* Low-level reusable utilities.
-* HTTP probing.
-* Header extraction.
-* Scope checking.
-* Endpoint classification.
-* Storage.
-* Logging.
-* Policy loading.
-* Priority scoring.
-* Finding summarization.
+* reusable low-level utilities
+* HTTP probing
+* header extraction
+* URL normalization
+* inventory building
+* endpoint extraction
+* logging
+* storage
+* policy loading
+* skill loading
+* report writing
 
 Rules:
 
-* Low-level tools should be deterministic when possible.
-* Tools should not decide reportability by themselves.
-* Tools should not store secrets, cookies, tokens, personal data, payment data, or full sensitive response bodies.
-* External-request tools should be called by workflows, not directly by the runtime AI.
+* Tools should be deterministic where possible.
+* Tools should not decide final reportability alone.
+* Tools that can send requests should normally be called through workflows.
+* Tools must not store sensitive data.
+* Tools must not bypass workflow safety boundaries.
 
 ---
 
@@ -244,76 +273,27 @@ validators/
 
 Responsibilities:
 
-* Classify observations.
-* Reduce false positives.
-* Determine status, severity, confidence, and reportability.
-* Provide reasoning and false-positive notes.
+* conservative classification
+* false-positive reduction
+* reportability guidance
+* validation result normalization
 
 Validators must not:
 
-* Send HTTP requests.
-* Modify state.
-* Store findings.
-* Execute payloads.
-* Make unsupported claims.
+* send HTTP requests
+* modify state
+* store findings
+* execute payloads
+* make unsupported vulnerability claims
 
-Validator output should follow this pattern:
-
-```python
-{
-    "status": "observation | candidate_finding | confirmed_finding | needs_manual_validation",
-    "severity": "info | low | medium | high | critical",
-    "confidence": "low | medium | high",
-    "should_report": False,
-    "reason": "...",
-    "false_positive_notes": []
-}
-```
-
----
-
-### Skill Layer
-
-Location:
+Validator output should remain conservative:
 
 ```text
-skills/
+observation
+candidate_finding
+needs_manual_validation
+confirmed_finding only when future controlled validation policy allows it
 ```
-
-There are two types of skills:
-
-```text
-skills/agent_runtime/
-skills/codex_dev/
-```
-
-#### `skills/agent_runtime/`
-
-Used by the future runtime AI penetration testing agent.
-
-Purpose:
-
-* Guide reasoning during security testing.
-* Define decision rules.
-* Define evidence requirements.
-* Define false-positive rules.
-* Define escalation rules.
-* Define output schema.
-
-Runtime skills are not exploit scripts.
-
-Runtime skills should not contain unrestricted payload lists, brute-force logic, credential attacks, or destructive instructions.
-
-#### `skills/codex_dev/`
-
-Used by Codex for project maintenance.
-
-Purpose:
-
-* Explain how to add workflows.
-* Explain how to write tests.
-* Explain how to maintain architecture.
-* Explain coding rules.
 
 ---
 
@@ -324,13 +304,6 @@ Location:
 ```text
 config/
 ```
-
-Responsibilities:
-
-* Scope definition
-* Scan policy
-* False-positive rules
-* Tool risk profiles
 
 Important files:
 
@@ -343,10 +316,19 @@ config/tool_risk_profiles.json
 
 Rules:
 
-* `scope.json` is the source of truth for target authorization.
-* `tool_risk_profiles.json` is the source of truth for tool risk classification.
-* `false_positive_rules.json` should not be empty; use `[]` if no rules exist yet.
-* `scan_policy.json` should define global safety limits.
+* `scope.json` defines authorized targets.
+* `tool_risk_profiles.json` defines tool risk levels.
+* Unknown tools must be denied by default.
+* New MCP tools must have risk profiles before exposure.
+* Real private scope files should not be committed to public repositories.
+
+For public GitHub repositories, prefer:
+
+```text
+config/scope.example.json
+```
+
+and keep real scope files local.
 
 ---
 
@@ -358,154 +340,237 @@ Location:
 data/
 ```
 
-Runtime files:
+Runtime files may include:
 
 ```text
 data/findings.jsonl
-data/mcp.log
 data/evidence.jsonl
+data/endpoint_inventory.jsonl
+data/mcp.log
 ```
 
 Rules:
 
 * Runtime data must not be committed.
 * Only `data/.gitkeep` should be committed.
-* Findings must not include cookies, tokens, secrets, personal data, payment data, or full sensitive response bodies.
-* Evidence should favor metadata, hashes, summaries, and reproducible steps over sensitive content.
+* Findings and evidence must not include cookies, tokens, secrets, personal data, payment data, or full sensitive response bodies.
+* Evidence should favor metadata, hashes, summaries, and reproducible steps.
+
+---
+
+### Documentation Layer
+
+Location:
+
+```text
+docs/
+```
+
+Important files:
+
+```text
+docs/ARCHITECTURE.md
+docs/ATTACK_SURFACE_INVENTORY.md
+docs/RESULT_SCHEMA.md
+docs/ROADMAP.md
+docs/TEST_PLAN.md
+docs/TOOL_RISK_MODEL.md
+docs/RUNTIME_SKILLS.md
+```
+
+Rules:
+
+* Architecture docs must reflect the current stable version.
+* Roadmap must separate inventory, refactor, and controlled validation stages.
+* Result schema must guide future workflow output.
+* Test plan must list regression tests and safety expectations.
+* Docs must not claim the project can automatically compromise targets.
+
+---
+
+## Standard Result Rules
+
+Workflows should return a dictionary with these fields whenever possible:
+
+```json
+{
+  "target": "",
+  "stopped": false,
+  "reason": "",
+  "scope": {},
+  "observations": [],
+  "inventory_candidates": [],
+  "findings": [],
+  "errors": [],
+  "warnings": [],
+  "summary": {},
+  "safety": {
+    "requests_sent": 0,
+    "scan_level": "safe",
+    "fuzzing": false,
+    "bruteforce": false,
+    "exploitation": false,
+    "crawling": false,
+    "credentialed_request": false,
+    "state_changing": false
+  }
+}
+```
+
+Reference:
+
+```text
+docs/RESULT_SCHEMA.md
+```
+
+Rules:
+
+* Do not remove backward-compatible fields.
+* Do not under-report request counts.
+* Do not store full response bodies.
+* Do not store sensitive headers.
+* Do not claim confirmed vulnerabilities unless future controlled validation policy explicitly allows it.
 
 ---
 
 ## Safety Rules
 
-* Every workflow must call `check_scope()` before any external request.
-* Every workflow must return a `safety` object.
-* Every external workflow must report `requests_sent`.
-* Every external workflow must log start, scope result, request start, request completion, validation result, save result, and workflow completion.
-* No workflow may perform brute force.
-* No workflow may perform DoS or stress testing.
-* No workflow may perform mass fuzzing.
-* No workflow may perform credential stuffing.
-* No workflow may perform destructive actions.
-* No workflow may perform unrestricted exploit chaining.
-* No workflow may store cookies, tokens, secrets, personal data, payment data, or sensitive response bodies.
-* Medium-risk and high-risk validation must be behind `risk_gate` and explicit approval.
-* Unknown-risk tools must be denied by default.
+The project must not implement or expose:
+
+* unrestricted exploit automation
+* exploit chaining
+* SQL injection exploitation
+* XSS exploitation
+* SSRF exploitation
+* RCE exploitation
+* brute force
+* credential stuffing
+* DoS
+* mass fuzzing
+* unauthorized credentialed testing
+* form submission
+* state-changing actions
+* real data exfiltration
+* automatic bounty submission
+
+Allowed current behavior:
+
+* safe reconnaissance
+* bounded attack surface inventory
+* static endpoint extraction
+* bounded same-scope crawling
+* conservative observation
+* finding summarization
+* report draft generation
 
 ---
 
 ## Risk Levels
 
-### Safe
+### safe
 
 No external request.
 
 Examples:
 
-* Scope check
-* Risk evaluation
-* Finding summarization
-* Report draft generation
+* scope check
+* risk evaluation
+* finding summarization
+* report draft generation
+* local helper functions
 
-Default:
+### low
 
-```text
-Allow
-```
-
----
-
-### Low
-
-External request, but non-destructive and limited.
+Limited, non-destructive external request.
 
 Examples:
 
-* Safe HTTP probe
-* Security headers check
+* safe HTTP probe
+* security headers observation
 * CORS observation
-* Passive recon workflow
+* passive recon
+* robots/security.txt observation
+* sitemap parser
 
-Default:
+### medium
 
-```text
-Ask / approval required
-```
-
----
-
-### Medium
-
-More targeted validation or multiple requests.
+Multiple bounded requests or more sensitive inventory collection.
 
 Examples:
 
-* JS endpoint extraction
-* Robots/security.txt/sitemap workflow
-* Exposed public file observation
-* Open redirect controlled observation
-* GraphQL observation
+* JavaScript endpoint extraction
+* bounded crawl
+* future controlled open redirect observation
+* future controlled GraphQL observation
 
-Default:
+### high
 
-```text
-Explicit approval required
-```
-
----
-
-### High
-
-Sensitive validation requiring credentials, controlled account setup, or authorization-specific testing.
+Sensitive workflows requiring credentials, account setup, or authorization-specific validation.
 
 Examples:
 
-* Auth/access-control review
-* IDOR validation
-* Authenticated API comparison
-* State-sensitive validation
+* future authenticated authz validation
+* future IDOR validation
+* future authenticated API comparison
 
-Default:
-
-```text
-Explicit approval required + strict request limit + evidence rules
-```
-
----
-
-### Blocked
+### blocked
 
 Never automate.
 
 Examples:
 
-* Brute force
-* Credential stuffing
+* brute force
+* credential stuffing
 * DoS
-* Mass fuzzing
-* Unrestricted exploit chains
-* Real data exfiltration
-* Unauthorized access attempts
-* Destructive actions
-
-Default:
-
-```text
-Deny
-```
+* mass fuzzing
+* destructive testing
+* unrestricted exploit chains
+* real data exfiltration
 
 ---
 
 ## Coding Rules
 
-* Keep `server.py` thin.
+* Keep code changes small and reviewable.
+* Add comments for security boundaries, risk decisions, workflow phases, and fail-closed behavior.
+* Public functions should include docstrings explaining purpose, inputs, outputs, and safety constraints.
+* Avoid noisy comments that simply repeat obvious code.
 * Prefer deterministic Python logic over LLM judgment for validation.
-* Prefer workflow-level MCP tools over exposing low-level tools to LM Studio.
-* Do not add new MCP tools unless necessary.
-* Add or update tests when changing workflow behavior.
-* Do not change scope guard behavior unless explicitly requested.
-* Do not commit runtime files such as `data/findings.jsonl` or `data/mcp.log`.
-* Do not add exploit, fuzzing, brute-force, credential attack, or destructive validation logic unless explicitly requested and guarded by risk policy.
+* Prefer workflow-level MCP tools over exposing low-level tools.
+* Do not expose new MCP tools unless explicitly requested.
+* Do not modify `scope_guard.py` unless explicitly requested.
+* Do not modify request budgets unless explicitly documented and tested.
+* Do not change workflow behavior during refactor unless explicitly requested.
+* Add or update tests when behavior changes.
+* Do not commit runtime files.
+* Do not commit secrets.
 * When uncertain, update docs first instead of changing runtime code.
+
+---
+
+## Test Rules
+
+Tests should protect safety boundaries.
+
+Every external workflow test should verify:
+
+* out-of-scope target sends 0 requests
+* request budget is enforced
+* helper exception does not crash
+* helper non-dict result does not crash
+* sensitive data is not stored
+* full response body is not stored
+* no fuzzing
+* no brute force
+* no exploit
+* no credentialed request
+* no state-changing behavior
+
+Full regression tests are listed in:
+
+```text
+docs/TEST_PLAN.md
+```
 
 ---
 
@@ -515,45 +580,48 @@ Codex must work in small steps.
 
 For each task:
 
-* Read this file first.
-* Read relevant docs under `docs/`.
-* Modify only files explicitly allowed by the user.
-* Do not modify `scope_guard.py` unless explicitly requested.
-* Do not modify existing workflow behavior unless explicitly requested.
-* Do not expose new MCP tools unless explicitly requested.
-* Do not add exploit, fuzzing, brute force, credential attack, or destructive validation logic.
-* If a task requires a new workflow, also add or update tests.
-* If uncertain, update docs first instead of changing runtime code.
-* Explain what changed.
-* Explain how to test it.
+1. Read this file first.
+2. Read relevant docs under `docs/`.
+3. Modify only files explicitly allowed by the user.
+4. Do not modify unrelated files.
+5. Do not expose new MCP tools unless explicitly requested.
+6. Do not add exploit, fuzzing, brute force, credential attack, or destructive validation logic.
+7. If a task requires a new workflow, also add or update tests.
+8. If a task adds a new MCP tool, also update risk profile, tests, and docs.
+9. If uncertain, update docs first instead of changing runtime code.
+10. Explain what changed.
+11. Explain how to test it.
 
 ---
 
-## v0.2 Codex Priority
+## Current Development Direction
 
-When asked what to do next, Codex should prioritize:
+Current stable version:
 
-1. Add `agent/risk_gate.py`
-2. Add `agent/approval_controller.py`
-3. Add `tools/policy_loader.py`
-4. Add `config/tool_risk_profiles.json`
-5. Add `tests/test_risk_gate.py`
-6. Add `docs/TOOL_RISK_MODEL.md`
-7. Only after tests pass, optionally add `tool_evaluate_action_risk` to `server.py`
+```text
+v0.5-core-refactor-and-result-standardization
+```
 
-Codex must not implement new vulnerability workflows before v0.2 risk gate is complete.
+Recommended next milestone:
 
----
+```text
+v0.6-controlled-validation
+```
 
-## v0.2 Acceptance Criteria
+Before starting v0.6:
 
-v0.2 is complete when:
+* Ensure v0.5 is merged into `main`.
+* Tag v0.5.
+* Confirm README, AGENTS.md, architecture docs, roadmap, result schema, and test plan are updated.
+* Confirm `.gitignore` excludes runtime data and secrets.
+* Confirm public repo does not contain private scope, cookies, tokens, logs, or findings.
 
-1. `risk_gate.py` can classify tool actions as `safe`, `low`, `medium`, `high`, `blocked`, or `unknown`.
-2. `tool_risk_profiles.json` contains risk profiles for all exposed MCP tools.
-3. `approval_controller.py` can build approval request objects.
-4. `tests/test_risk_gate.py` passes.
-5. Existing workflow tests still pass.
-6. No existing workflow behavior is changed.
-7. No new external-request workflow is added.
-8. `server.py` remains thin.
+v0.6 should start with documentation and planning before adding controlled validation workflows.
+
+Recommended first v0.6 task:
+
+```text
+validation plan builder
+```
+
+This should be safe and local-only before any new external validation workflow is added.
