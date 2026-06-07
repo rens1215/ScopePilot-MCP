@@ -1,10 +1,12 @@
 from urllib.parse import urlsplit, urlunsplit
 
+from tools.http_result_utils import base_http_observation, get_content_type, headers_summary, safe_http_probe_call
+from tools.inventory_candidate_builder import build_validated_inventory_candidate
+from tools.result_schema import build_blocked_result, build_workflow_result
+from tools.safety_metadata import build_safety_metadata
 from tools.scope_guard import check_scope
 from tools.url_normalizer import normalize_url
-from tools.endpoint_inventory import build_inventory_item
 from tools.logger import log_event
-from validators.inventory_validator import validate_inventory_item
 
 try:
     from tools.http_probe import http_probe
@@ -18,25 +20,9 @@ METADATA_PATHS = (
     ("/sitemap.xml", "sitemap"),
 )
 
-SAFE_HEADER_KEYS = {
-    "content-type",
-    "content-length",
-    "last-modified",
-    "etag",
-    "cache-control",
-}
-
 
 def _safety(requests_sent: int, scan_level: str = "low-risk") -> dict:
-    return {
-        "requests_sent": requests_sent,
-        "scan_level": scan_level,
-        "fuzzing": False,
-        "bruteforce": False,
-        "exploitation": False,
-        "crawling": False,
-        "credentialed_request": False,
-    }
+    return build_safety_metadata(requests_sent=requests_sent, scan_level=scan_level)
 
 
 def _target_origin(target: str) -> str:
@@ -51,50 +37,27 @@ def _metadata_url(target: str, path: str) -> str:
     return f"{_target_origin(target).rstrip('/')}{path}"
 
 
-def _headers_summary(headers: dict | None) -> dict:
-    if not isinstance(headers, dict):
-        return {}
-
-    # Keep only non-sensitive metadata headers. In particular, never store
-    # Set-Cookie, Authorization, tokens, or full response bodies in inventory.
-    summary = {}
-    for key, value in headers.items():
-        lowered = str(key).lower()
-        if lowered in SAFE_HEADER_KEYS:
-            summary[lowered] = value
-    return summary
-
-
 def _build_candidate(target: str, metadata_url: str, source: str, probe: dict) -> dict:
     normalized = normalize_url(metadata_url)
     normalized_url = normalized.get("normalized_url") if normalized.get("ok") else metadata_url
 
-    item = build_inventory_item(
+    return build_validated_inventory_candidate(
         target=target,
-        url=metadata_url,
+        raw_url=metadata_url,
         normalized_url=normalized_url,
         source=source,
         discovered_by="safe_robots_securitytxt_workflow",
         evidence={
             "status_code": probe.get("status_code"),
-            "content_type": probe.get("content_type", ""),
+            "content_type": get_content_type(probe),
             "body_size": probe.get("body_size"),
-            "headers_summary": _headers_summary(probe.get("headers")),
+            "headers_summary": headers_summary(probe.get("headers")),
         },
         notes=(
             "Public metadata observation only. Missing files are observations, "
             "not workflow errors. Do not treat robots.txt Disallow paths as scan authorization."
         ),
     )
-
-    validation = validate_inventory_item(item)
-    item["endpoint_type"] = validation.get("endpoint_type", "unknown")
-    item["priority"] = validation.get("priority", "low")
-    item["confidence"] = validation.get("confidence", "low")
-    item["recommended_next_skill"] = validation.get("recommended_next_skill", "")
-    item["validator_result"] = validation
-
-    return item
 
 
 def _safe_http_probe(metadata_url: str) -> tuple[dict, bool]:
@@ -105,27 +68,15 @@ def _safe_http_probe(metadata_url: str) -> tuple[dict, bool]:
     exceptions or malformed return values become request_error observations
     instead of crashing the whole workflow.
     """
-    if http_probe is None:
-        return {
-            "blocked": False,
-            "error": "HTTP probe helper is unavailable.",
-        }, False
+    return safe_http_probe_call(metadata_url, probe_func=http_probe)
 
-    try:
-        probe = http_probe(metadata_url)
-    except Exception as error:
-        return {
-            "blocked": False,
-            "error": f"HTTP probe raised exception: {error}",
-        }, True
 
-    if not isinstance(probe, dict):
-        return {
-            "blocked": False,
-            "error": "HTTP probe returned a non-dict result.",
-        }, True
-
-    return probe, True
+def _base_observation(path: str, source: str, metadata_url: str, probe: dict, status: str) -> dict:
+    return {
+        **base_http_observation(metadata_url, probe, status),
+        "path": path,
+        "source": source,
+    }
 
 
 def safe_robots_securitytxt_workflow(target: str) -> dict:
@@ -153,16 +104,12 @@ def safe_robots_securitytxt_workflow(target: str) -> dict:
     )
 
     if not scope.get("in_scope"):
-        return {
-            "target": target,
-            "stopped": True,
-            "reason": "Target is not in scope.",
-            "scope": scope,
-            "observations": [],
-            "inventory_candidates": [],
-            "allowed_metadata_paths": [path for path, _source in METADATA_PATHS],
-            "safety": _safety(0, scan_level="blocked"),
-        }
+        return build_blocked_result(
+            target=target,
+            reason="Target is not in scope.",
+            scope=scope,
+            allowed_metadata_paths=[path for path, _source in METADATA_PATHS],
+        )
 
     observations = []
     inventory_candidates = []
@@ -191,17 +138,7 @@ def safe_robots_securitytxt_workflow(target: str) -> dict:
         elif probe.get("blocked"):
             observation_status = "blocked"
 
-        observation = {
-            "path": path,
-            "source": source,
-            "url": metadata_url,
-            "status": observation_status,
-            "status_code": probe.get("status_code"),
-            "content_type": probe.get("content_type", ""),
-            "body_size": probe.get("body_size"),
-            "headers_summary": _headers_summary(probe.get("headers")),
-            "error": probe.get("error"),
-        }
+        observation = _base_observation(path, source, metadata_url, probe, observation_status)
         observations.append(observation)
 
         candidate = _build_candidate(target, metadata_url, source, probe)
@@ -212,17 +149,17 @@ def safe_robots_securitytxt_workflow(target: str) -> dict:
         f"requests_sent={requests_sent} candidates={len(inventory_candidates)}"
     )
 
-    return {
-        "target": target,
-        "stopped": False,
-        "scope": scope,
-        "observations": observations,
-        "inventory_candidates": inventory_candidates,
-        "allowed_metadata_paths": [path for path, _source in METADATA_PATHS],
-        "summary": {
+    return build_workflow_result(
+        target=target,
+        stopped=False,
+        scope=scope,
+        observations=observations,
+        inventory_candidates=inventory_candidates,
+        summary={
             "metadata_paths_checked": len(METADATA_PATHS),
             "inventory_candidate_count": len(inventory_candidates),
             "not_found_count": sum(1 for item in observations if item.get("status") == "not_found"),
         },
-        "safety": _safety(requests_sent),
-    }
+        safety=_safety(requests_sent),
+        allowed_metadata_paths=[path for path, _source in METADATA_PATHS],
+    )
