@@ -2,12 +2,20 @@ import time
 from urllib.parse import urlsplit, urlunsplit
 
 from tools.crawl_queue import CrawlQueue
-from tools.endpoint_inventory import build_inventory_item
+from tools.http_result_utils import (
+    base_http_observation,
+    get_content_type,
+    headers_summary,
+    is_allowed_content_type,
+    probe_body_text,
+    safe_http_probe_call,
+)
 from tools.html_link_extractor import extract_html_links
+from tools.inventory_candidate_builder import build_validated_inventory_candidate
 from tools.logger import log_event
+from tools.result_schema import build_workflow_result
+from tools.safety_metadata import build_safety_metadata
 from tools.scope_guard import check_scope
-from tools.url_normalizer import normalize_url
-from validators.inventory_validator import validate_inventory_item
 
 try:
     from tools.http_probe import http_probe
@@ -21,14 +29,6 @@ ALLOWED_HTML_CONTENT_TYPES = {
 }
 
 HARD_MAX_REQUESTS = 30
-
-SAFE_HEADER_KEYS = {
-    "content-type",
-    "content-length",
-    "last-modified",
-    "etag",
-    "cache-control",
-}
 
 
 def _nonnegative_int(value: int, default: int) -> int:
@@ -63,37 +63,7 @@ def _hostname(url: str) -> str:
 
 
 def _safety(requests_sent: int, scan_level: str = "medium-risk") -> dict:
-    return {
-        "requests_sent": requests_sent,
-        "scan_level": scan_level,
-        "fuzzing": False,
-        "bruteforce": False,
-        "exploitation": False,
-        "crawling": True,
-        "credentialed_request": False,
-    }
-
-
-def _headers_summary(headers: dict | None) -> dict:
-    if not isinstance(headers, dict):
-        return {}
-
-    # Keep only non-sensitive metadata. Never copy Set-Cookie, Authorization,
-    # tokens, secrets, personal data, payment data, or response bodies.
-    summary = {}
-    for key, value in headers.items():
-        lowered = str(key).lower()
-        if lowered in SAFE_HEADER_KEYS:
-            summary[lowered] = value
-    return summary
-
-
-def _content_type(probe: dict) -> str:
-    value = probe.get("content_type", "")
-    if not value and isinstance(probe.get("headers"), dict):
-        value = probe["headers"].get("content-type", "")
-
-    return str(value).split(";", 1)[0].strip().lower()
+    return build_safety_metadata(requests_sent=requests_sent, scan_level=scan_level, crawling=True)
 
 
 def _safe_http_probe(url: str) -> tuple[dict, bool]:
@@ -111,44 +81,11 @@ def _safe_http_probe(url: str) -> tuple[dict, bool]:
             "error": "HTTP probe helper is unavailable.",
         }, False
 
-    try:
-        probe = http_probe(url)
-    except Exception as error:
-        return {
-            "blocked": False,
-            "error": f"HTTP probe raised exception: {error}",
-        }, True
-
-    if not isinstance(probe, dict):
-        return {
-            "blocked": False,
-            "error": "HTTP probe returned a non-dict result.",
-        }, True
-
-    return probe, True
-
-
-def _probe_body_text(probe: dict) -> str:
-    for key in ("body", "text", "body_text", "content", "response_text"):
-        value = probe.get(key)
-        if isinstance(value, str):
-            return value
-        if isinstance(value, bytes):
-            return value.decode("utf-8", errors="replace")
-    return ""
+    return safe_http_probe_call(url, probe_func=http_probe)
 
 
 def _base_observation(url: str, probe: dict, status: str, depth: int, error: str | None = None) -> dict:
-    return {
-        "url": url,
-        "depth": depth,
-        "status": status,
-        "status_code": probe.get("status_code"),
-        "content_type": _content_type(probe),
-        "body_size": probe.get("body_size"),
-        "headers_summary": _headers_summary(probe.get("headers")),
-        "error": error if error is not None else probe.get("error"),
-    }
+    return base_http_observation(url, probe, status, depth=depth, error=error)
 
 
 def _same_host_or_in_scope(normalized_url: str, target_hostname: str) -> bool:
@@ -174,17 +111,17 @@ def _build_candidate(
     discovered_from: str,
     probe: dict,
 ) -> dict:
-    item = build_inventory_item(
+    return build_validated_inventory_candidate(
         target=target,
-        url=raw_url,
+        raw_url=raw_url,
         normalized_url=normalized_url,
         source=source,
         discovered_by="safe_bounded_crawl_workflow",
         evidence={
             "status_code": probe.get("status_code"),
-            "content_type": _content_type(probe),
+            "content_type": get_content_type(probe),
             "body_size": probe.get("body_size"),
-            "headers_summary": _headers_summary(probe.get("headers")),
+            "headers_summary": headers_summary(probe.get("headers")),
         },
         notes=(
             f"Candidate discovered from HTML page {discovered_from}. "
@@ -193,15 +130,6 @@ def _build_candidate(
             "submit forms, fuzz, brute force, exploit, or use credentials."
         ),
     )
-
-    validation = validate_inventory_item(item)
-    item["endpoint_type"] = validation.get("endpoint_type", "unknown")
-    item["priority"] = validation.get("priority", "low")
-    item["confidence"] = validation.get("confidence", "low")
-    item["recommended_next_skill"] = validation.get("recommended_next_skill", "")
-    item["validator_result"] = validation
-
-    return item
 
 
 def _append_candidate(
@@ -273,16 +201,14 @@ def safe_bounded_crawl_workflow(
     )
 
     if not scope.get("in_scope"):
-        return {
-            "target": target,
-            "stopped": True,
-            "reason": "Target is not in scope.",
-            "scope": scope,
-            "crawled_pages": [],
-            "skipped_urls": [],
-            "inventory_candidates": [],
-            "observations": [],
-            "summary": {
+        return build_workflow_result(
+            target=target,
+            stopped=True,
+            reason="Target is not in scope.",
+            scope=scope,
+            observations=[],
+            inventory_candidates=[],
+            summary={
                 "crawled_page_count": 0,
                 "inventory_candidate_count": 0,
                 "skipped_url_count": 0,
@@ -293,8 +219,10 @@ def safe_bounded_crawl_workflow(
                 "rate_delay_seconds": effective_rate_delay,
                 "max_links_per_page": effective_max_links_per_page,
             },
-            "safety": _safety(0, scan_level="blocked"),
-        }
+            safety=_safety(0, scan_level="blocked"),
+            crawled_pages=[],
+            skipped_urls=[],
+        )
 
     target_url = _target_url(target)
     target_hostname = (scope.get("hostname") or _hostname(target_url)).lower()
@@ -356,7 +284,7 @@ def safe_bounded_crawl_workflow(
                 "url": page_url,
                 "depth": depth,
                 "status_code": probe.get("status_code"),
-                "content_type": _content_type(probe),
+                "content_type": get_content_type(probe),
                 "body_size": probe.get("body_size"),
             }
         )
@@ -369,8 +297,8 @@ def safe_bounded_crawl_workflow(
             observations.append(_base_observation(page_url, probe, "blocked", depth))
             continue
 
-        content_type = _content_type(probe)
-        if content_type not in ALLOWED_HTML_CONTENT_TYPES:
+        content_type = get_content_type(probe)
+        if not is_allowed_content_type(content_type, ALLOWED_HTML_CONTENT_TYPES):
             observations.append(
                 _base_observation(
                     page_url,
@@ -382,7 +310,7 @@ def safe_bounded_crawl_workflow(
             )
             continue
 
-        html_text = _probe_body_text(probe)
+        html_text = probe_body_text(probe)
         if not html_text:
             observations.append(
                 _base_observation(
@@ -505,14 +433,14 @@ def safe_bounded_crawl_workflow(
         f"candidates={len(inventory_candidates)}"
     )
 
-    return {
-        "target": target,
-        "stopped": False,
-        "scope": scope,
-        "crawled_pages": crawled_pages,
-        "skipped_urls": skipped_urls,
-        "inventory_candidates": inventory_candidates,
-        "observations": observations,
-        "summary": summary,
-        "safety": _safety(requests_sent),
-    }
+    return build_workflow_result(
+        target=target,
+        stopped=False,
+        scope=scope,
+        observations=observations,
+        inventory_candidates=inventory_candidates,
+        summary=summary,
+        safety=_safety(requests_sent),
+        crawled_pages=crawled_pages,
+        skipped_urls=skipped_urls,
+    )
